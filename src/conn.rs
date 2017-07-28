@@ -529,8 +529,9 @@ impl<T> LdapConnBuilder<T> {
         self
     }
 
+    #[doc(hidden)]
     /// Provide a connector that is used to establish TLS connections.
-    pub fn with_connector(mut self, connector: TlsConnector) -> Self {
+    pub fn with_tls_connector(mut self, connector: TlsConnector) -> Self {
         self.connector = Some(connector);
         self
     }

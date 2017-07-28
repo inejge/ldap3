@@ -176,7 +176,7 @@ impl Ldap {
     ///
     /// The connection _must_ be by host name for TLS hostname check to work.
     #[cfg(feature = "tls")]
-    pub fn connect_ssl_with_connector(addr: &str, handle: &Handle, timeout: Option<Duration>, connector: TlsConnector) ->
+    fn connect_ssl_with_connector(addr: &str, handle: &Handle, timeout: Option<Duration>, connector: TlsConnector) ->
             Box<Future<Item=Ldap, Error=io::Error>> {
         if addr.parse::<SocketAddr>().ok().is_some() {
             return Box::new(future::err(io::Error::new(io::ErrorKind::Other, "SSL connection must be by hostname")));

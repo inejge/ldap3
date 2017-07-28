@@ -17,6 +17,7 @@ use tokio_core::reactor::{Core, Handle};
 use url::{Host, Url};
 #[cfg(all(unix, not(feature = "minimal")))]
 use url::percent_encoding::percent_decode;
+use native_tls::TlsConnector;
 
 use controls_impl::IntoRawControlVec;
 use exop::Exop;
@@ -47,11 +48,15 @@ impl LdapWrapper {
     }
 
     #[cfg(feature = "tls")]
-    fn connect_ssl(addr: &str, handle: &Handle, timeout: Option<Duration>)
+    fn connect_ssl(addr: &str, handle: &Handle, timeout: Option<Duration>, connector: Option<TlsConnector>)
         -> Box<Future<Item=LdapWrapper, Error=io::Error>>
     {
-        let lw = Ldap::connect_ssl(addr, handle, timeout)
-            .map(|ldap| {
+        let conn = if let Some(c) = connector {
+            Ldap::connect_ssl_with_connector(addr, handle, timeout, c)
+        } else {
+            Ldap::connect_ssl(addr, handle, timeout)
+        };
+        let lw = conn.map(|ldap| {
                 LdapWrapper {
                     inner: ldap,
                 }
@@ -191,12 +196,12 @@ impl LdapConn {
     /// details of supported URL formats, see
     /// [`LdapConnAsync::new()`](struct.LdapConnAsync.html#method.new).
     pub fn new(url: &str) -> io::Result<Self> {
-        LdapConn::with_conn_timeout(None, url)
+        LdapConn::with_settings(None, url, None)
     }
 
-    fn with_conn_timeout(timeout: Option<Duration>, url: &str) -> io::Result<Self> {
+    fn with_settings(timeout: Option<Duration>, url: &str, connector: Option<TlsConnector>) -> io::Result<Self> {
         let mut core = Core::new()?;
-        let conn = LdapConnAsync::with_conn_timeout(timeout, url, &core.handle())?;
+        let conn = LdapConnAsync::with_settings(timeout, url, &core.handle(), connector)?;
         let ldap = core.run(conn)?;
         Ok(LdapConn {
             core: Rc::new(RefCell::new(core)),
@@ -379,12 +384,12 @@ impl LdapConnAsync {
     /// feature, which is activated by default. Compiling without __tls__ or with the
     /// __minimal__ feature will omit TLS support.
     pub fn new(url: &str, handle: &Handle) -> io::Result<Self> {
-        LdapConnAsync::new_tcp(url, handle, None)
+        LdapConnAsync::new_tcp(url, handle, None, None)
     }
 
     #[cfg(any(not(unix), feature = "minimal"))]
-    fn with_conn_timeout(timeout: Option<Duration>, url: &str, handle: &Handle) -> io::Result<Self> {
-        LdapConnAsync::new_tcp(url, handle, timeout)
+    fn with_settings(timeout: Option<Duration>, url: &str, handle: &Handle, connector: Option<TlsConnector>) -> io::Result<Self> {
+        LdapConnAsync::new_tcp(url, handle, timeout, connector)
     }
 
     #[cfg(all(unix, not(feature = "minimal")))]
@@ -398,16 +403,16 @@ impl LdapConnAsync {
     /// __minimal__ feature will omit TLS support.
     pub fn new(url: &str, handle: &Handle) -> io::Result<Self> {
         if !url.starts_with("ldapi://") {
-            LdapConnAsync::new_tcp(url, handle, None)
+            LdapConnAsync::new_tcp(url, handle, None, None)
         } else {
             LdapConnAsync::new_unix(url, handle)
         }
     }
 
     #[cfg(all(unix, not(feature = "minimal")))]
-    fn with_conn_timeout(timeout: Option<Duration>, url: &str, handle: &Handle) -> io::Result<Self> {
+    fn with_settings(timeout: Option<Duration>, url: &str, handle: &Handle, connector: Option<TlsConnector>) -> io::Result<Self> {
         if !url.starts_with("ldapi://") {
-            LdapConnAsync::new_tcp(url, handle, timeout)
+            LdapConnAsync::new_tcp(url, handle, timeout, connector)
         } else {
             LdapConnAsync::new_unix(url, handle)
         }
@@ -429,7 +434,7 @@ impl LdapConnAsync {
         })
     }
 
-    fn new_tcp(url: &str, handle: &Handle, timeout: Option<Duration>) -> io::Result<Self> {
+    fn new_tcp(url: &str, handle: &Handle, timeout: Option<Duration>, connector: Option<TlsConnector>) -> io::Result<Self> {
         let url = Url::parse(url).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let mut port = 389;
         let scheme = match url.scheme() {
@@ -463,7 +468,7 @@ impl LdapConnAsync {
             in_progress: match scheme {
                 "ldap" => Rc::new(RefCell::new(LdapWrapper::connect(&addr.expect("addr"), handle, timeout))),
                 #[cfg(feature = "tls")]
-                "ldaps" => Rc::new(RefCell::new(LdapWrapper::connect_ssl(&host_port, handle, timeout))),
+                "ldaps" => Rc::new(RefCell::new(LdapWrapper::connect_ssl(&host_port, handle, timeout, connector))),
                 _ => unimplemented!(),
             },
             wrapper: Rc::new(RefCell::new(None)),
@@ -512,6 +517,7 @@ impl Future for LdapConnAsync {
 /// ```
 pub struct LdapConnBuilder<T> {
     timeout: Option<Duration>,
+    connector: Option<TlsConnector>,
     _marker: PhantomData<T>,
 }
 
@@ -522,6 +528,13 @@ impl<T> LdapConnBuilder<T> {
         self.timeout = Some(timeout);
         self
     }
+
+    #[doc(hidden)]
+    /// Provide a connector that is used to establish TLS connections.
+    pub fn with_tls_connector(mut self, connector: TlsConnector) -> Self {
+        self.connector = Some(connector);
+        self
+    }
 }
 
 impl LdapConnBuilder<LdapConn> {
@@ -530,13 +543,14 @@ impl LdapConnBuilder<LdapConn> {
     pub fn new() -> LdapConnBuilder<LdapConn> {
         LdapConnBuilder {
             timeout: None,
+            connector: None,
             _marker: PhantomData,
         }
     }
 
     /// Create a synchronous LDAP connection from this helper.
     pub fn connect(self, url: &str) -> io::Result<LdapConn> {
-        LdapConn::with_conn_timeout(self.timeout, url)
+        LdapConn::with_settings(self.timeout, url, self.connector)
     }
 }
 
@@ -546,12 +560,13 @@ impl LdapConnBuilder<LdapConnAsync> {
     pub fn new() -> LdapConnBuilder<LdapConnAsync> {
         LdapConnBuilder {
             timeout: None,
+            connector: None,
             _marker: PhantomData,
         }
     }
 
     /// Create an asynchronous LDAP connection from this helper.
     pub fn connect(self, url: &str, handle: &Handle) -> io::Result<LdapConnAsync> {
-        LdapConnAsync::with_conn_timeout(self.timeout, url, handle)
+        LdapConnAsync::with_settings(self.timeout, url, handle, self.connector)
     }
 }

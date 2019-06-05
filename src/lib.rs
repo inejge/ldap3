@@ -138,9 +138,13 @@ extern crate tokio_uds;
 extern crate tokio_uds_proto;
 extern crate url;
 
+extern crate sspi;
+mod spnego;
+
 mod abandon;
 mod add;
 mod bind;
+mod bind_spnego;
 mod compare;
 mod conn;
 pub mod controls {

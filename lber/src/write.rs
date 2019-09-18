@@ -1,6 +1,5 @@
 //! BER encoding support.
 use bytes::BytesMut;
-use byteorder::{BigEndian, WriteBytesExt};
 use common::{TagClass, TagStructure};
 use structure::{StructureTag, PL};
 
@@ -75,7 +74,7 @@ fn write_type(w: &mut Write, class: TagClass, structure: TagStructure, id: u64) 
         }
     }; // let type_byte
 
-    let _ = w.write_u8(type_byte);
+    let _ = w.write_all(&[type_byte]);
 
     if let Some(mut ext_bytes) = extended_tag
     {
@@ -86,11 +85,11 @@ fn write_type(w: &mut Write, class: TagClass, structure: TagStructure, id: u64) 
             // Set the first bit
             byte |= 0x80;
 
-            let _ = w.write_u8(byte);
+            let _ = w.write_all(&[byte]);
         }
 
         let byte = ext_bytes.pop().unwrap();
-        let _ = w.write_u8(byte);
+        let _ = w.write_all(&[byte]);
     }
 }
 
@@ -99,18 +98,18 @@ fn write_length(w: &mut Write, length: usize) {
     // Short form
     if length < 128
     {
-        let _ = w.write_u8(length as u8);
+        let _ = w.write_all(&[length as u8]);
     }
     // Long form
     else
     {
-        let mut count = 0u8;
-        let mut len = length;
-        while {count += 1; len >>= 8; len > 0 }{}
-
-
-        let _ = w.write_u8(count | 0x80);
-        let _ = w.write_uint::<BigEndian>(length as u64, count as usize);
+        let bytes = length.to_be_bytes();
+        let mut bytes: &[u8] = &bytes;
+        while bytes.first() == Some(&0) {
+            bytes = &bytes[1..];
+        }
+        let _ = w.write_all(&[bytes.len() as u8 | 0x80]);
+        let _ = w.write_all(bytes);
     }
 }
 

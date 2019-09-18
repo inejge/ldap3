@@ -113,7 +113,6 @@
 //! ```
 
 extern crate bytes;
-extern crate byteorder;
 #[macro_use]
 extern crate futures;
 #[macro_use]

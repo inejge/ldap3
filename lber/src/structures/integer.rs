@@ -5,8 +5,6 @@ use structure;
 
 use std::default;
 
-use byteorder::{BigEndian, WriteBytesExt};
-
 /// Integer value.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Integer {
@@ -24,20 +22,16 @@ pub struct Enumerated {
 }
 
 fn i_e_into_structure(id: u64, class: TagClass, inner: i64) -> structure::StructureTag {
-    let mut count = 0u8;
-    let mut rem: i64 = if inner >= 0 { inner } else { inner * -1 };
-    while {count += 1; rem >>= 8; rem > 0 }{}
-
-    // Ensure that the most significant bit is always 0, because BER uses signed numbers.
-    // We shift away all but the most significant bit and check that.
+    let mut out = inner.to_be_bytes().to_vec();
+    // Ensure that the most significant bit is always 0 for positive or 1 for negative
+    // numbers, to keep the sign unchanged.
     // See #21
-    if inner > 0 && inner >> ((8 * count) - 1) == 1 {
-        count += 1;
+    let skippable = if inner >= 0 { 0 } else { 0xff };
+    while out.first() == Some(&skippable)
+        && out.get(1).map(|v| v & 0x80 == skippable & 0x80).unwrap_or(false)
+    {
+        out.remove(0);
     }
-
-    let mut out: Vec<u8> = Vec::with_capacity(count as usize);
-
-    out.write_int::<BigEndian>(inner, count as usize).unwrap();
 
     structure::StructureTag {
         id: id,

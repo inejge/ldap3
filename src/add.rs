@@ -15,7 +15,7 @@ use result::LdapResult;
 impl Ldap {
     /// See [`LdapConn::add()`](struct.LdapConn.html#method.add).
     pub fn add<S: AsRef<[u8]> + Eq + Hash>(&self, dn: &str, attrs: Vec<(S, HashSet<S>)>) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let mut any_empty = false;
         let req = Tag::Sequence(Sequence {
             id: 8,

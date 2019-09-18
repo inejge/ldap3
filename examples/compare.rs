@@ -11,7 +11,7 @@ fn main() {
     }
 }
 
-fn do_compare() -> Result<bool, Box<Error>> {
+fn do_compare() -> Result<bool, Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     ldap.simple_bind("cn=Manager,dc=example,dc=org", "secret")?.success()?;
     let cmp = ldap.compare(

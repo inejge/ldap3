@@ -12,7 +12,7 @@ fn main() {
     }
 }
 
-fn do_whoami() -> Result<String, Box<Error>> {
+fn do_whoami() -> Result<String, Box<dyn Error>> {
     let ldap = LdapConn::new("ldapi://ldapi")?;
     ldap.sasl_external_bind()?.success()?;
     let (exop, _res) = ldap.extended(WhoAmI)?.success()?;

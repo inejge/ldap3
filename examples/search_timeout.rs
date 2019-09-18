@@ -12,7 +12,7 @@ fn main() {
     }
 }
 
-fn do_search() -> Result<(), Box<Error>> {
+fn do_search() -> Result<(), Box<dyn Error>> {
     let ldap = LdapConn::with_settings(
         LdapConnSettings::new().set_conn_timeout(Duration::from_secs(5)),
         "ldap://localhost:2389")?;

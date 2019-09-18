@@ -11,7 +11,7 @@ fn main() {
     }
 }
 
-fn do_search() -> Result<u32, Box<Error>> {
+fn do_search() -> Result<u32, Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     let mut strm = ldap
         .with_search_options(SearchOptions::new().autopage(500))

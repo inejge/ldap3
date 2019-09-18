@@ -11,7 +11,7 @@ fn main() {
     }
 }
 
-fn do_search() -> Result<(), Box<Error>> {
+fn do_search() -> Result<(), Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     let (rs, res) = ldap
         .with_search_options(SearchOptions::new().sizelimit(1))

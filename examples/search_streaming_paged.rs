@@ -13,7 +13,7 @@ fn main() {
     }
 }
 
-fn do_search() -> Result<u32, Box<Error>> {
+fn do_search() -> Result<u32, Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     let mut cookie = Vec::new();
     let mut count = 0;

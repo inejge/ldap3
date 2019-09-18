@@ -56,7 +56,7 @@ impl<I> ClientProto<I> for TlsClient
     type Request = <LdapProto as ClientProto<TlsStream<I>>>::Request;
     type Response = <LdapProto as ClientProto<TlsStream<I>>>::Response;
     type Transport = <LdapProto as ClientProto<TlsStream<I>>>::Transport;
-    type BindTransport = Box<Future<Item=Self::Transport, Error=io::Error>>;
+    type BindTransport = Box<dyn Future<Item=Self::Transport, Error=io::Error>>;
 
     fn bind_transport(&self, io: I) -> Self::BindTransport {
         let hostname = self.hostname.clone();

@@ -88,8 +88,8 @@ pub enum LdapOp {
 
 pub struct LdapResponse(pub Tag, pub Vec<Control>);
 
-fn connect_with_timeout(timeout: Option<Duration>, fut: Box<Future<Item=Ldap, Error=io::Error>>, handle: &Handle)
-    -> Box<Future<Item=Ldap, Error=io::Error>>
+fn connect_with_timeout(timeout: Option<Duration>, fut: Box<dyn Future<Item=Ldap, Error=io::Error>>, handle: &Handle)
+    -> Box<dyn Future<Item=Ldap, Error=io::Error>>
 {
     if let Some(timeout) = timeout {
         let timeout = Timeout::new(timeout, handle)
@@ -114,7 +114,7 @@ impl Ldap {
     /// in `addr`, and an event loop handle in `handle`. The `settings` struct can specify
     /// additional parameters, such as connection timeout.
     pub fn connect(addr: &SocketAddr, handle: &Handle, settings: LdapConnSettings) ->
-            Box<Future<Item=Ldap, Error=io::Error>> {
+            Box<dyn Future<Item=Ldap, Error=io::Error>> {
         let proto = LdapProto::new(handle.clone());
         let bundle = proto.bundle();
         let ret = TcpClient::new(proto)
@@ -143,7 +143,7 @@ impl Ldap {
     /// element containing that address in order to pass hostname checking.
     #[cfg(feature = "tls")]
     pub fn connect_ssl(addr: &SocketAddr, hostname: &str, handle: &Handle, settings: LdapConnSettings) ->
-            Box<Future<Item=Ldap, Error=io::Error>> {
+            Box<dyn Future<Item=Ldap, Error=io::Error>> {
         let proto = LdapProto::new(handle.clone());
         let bundle = proto.bundle();
         let connector = match settings.connector {
@@ -181,7 +181,7 @@ impl Ldap {
     /// is presently unused.
     #[cfg(all(unix, not(feature = "minimal")))]
     pub fn connect_unix<P: AsRef<Path>>(path: P, handle: &Handle, settings: LdapConnSettings) ->
-            Box<Future<Item=Ldap, Error=io::Error>> {
+            Box<dyn Future<Item=Ldap, Error=io::Error>> {
         let _ = settings;
         let proto = LdapProto::new(handle.clone());
         let bundle = proto.bundle();
@@ -225,7 +225,7 @@ impl Service for Ldap {
     type Request = LdapOp;
     type Response = LdapResponse;
     type Error = io::Error;
-    type Future = Box<Future<Item=Self::Response, Error=io::Error>>;
+    type Future = Box<dyn Future<Item=Self::Response, Error=io::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         if let Some(timeout) = next_timeout(self) {
@@ -271,10 +271,10 @@ impl Service for Ldap {
 }
 
 impl Service for ClientMap {
-    type Request = (LdapOp, Box<Fn(i32)>);
+    type Request = (LdapOp, Box<dyn Fn(i32)>);
     type Response = (Tag, Vec<Control>);
     type Error = io::Error;
-    type Future = Box<Future<Item=Self::Response, Error=io::Error>>;
+    type Future = Box<dyn Future<Item=Self::Response, Error=io::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
         match *self {
@@ -301,7 +301,7 @@ pub struct LdapConnSettings {
     #[cfg(feature = "tls")]
     starttls: bool,
     no_tls_verify: bool,
-    resolver: Option<Rc<Fn(&str) -> Box<Future<Item=SocketAddr, Error=io::Error>>>>,
+    resolver: Option<Rc<dyn Fn(&str) -> Box<dyn Future<Item=SocketAddr, Error=io::Error>>>>,
 }
 
 impl LdapConnSettings {
@@ -396,7 +396,7 @@ impl LdapConnSettings {
     /// # }
     /// # }
     /// ```
-    pub fn set_resolver(mut self, resolver: Rc<Fn(&str) -> Box<Future<Item=SocketAddr, Error=io::Error>>>) -> Self {
+    pub fn set_resolver(mut self, resolver: Rc<dyn Fn(&str) -> Box<dyn Future<Item=SocketAddr, Error=io::Error>>>) -> Self {
         self.resolver = Some(resolver);
         self
     }
@@ -412,7 +412,7 @@ pub fn is_starttls(_settings: &LdapConnSettings) -> bool {
     false
 }
 
-pub fn resolve_addr(addr: &str, settings: &LdapConnSettings) -> Box<Future<Item=SocketAddr, Error=io::Error>> {
+pub fn resolve_addr(addr: &str, settings: &LdapConnSettings) -> Box<dyn Future<Item=SocketAddr, Error=io::Error>> {
     if let Some(ref resolver) = settings.resolver {
         resolver(addr)
     } else {

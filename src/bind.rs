@@ -12,7 +12,7 @@ use result::LdapResult;
 impl Ldap {
     /// See [`LdapConn::simple_bind()`](struct.LdapConn.html#method.simple_bind).
     pub fn simple_bind(&self, bind_dn: &str, bind_pw: &str) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let req = Tag::Sequence(Sequence {
             id: 0,
             class: TagClass::Application,
@@ -46,7 +46,7 @@ impl Ldap {
     #[cfg(not(feature = "minimal"))]
     /// See [`LdapConn::sasl_external_bind()`](struct.LdapConn.html#method.sasl_external_bind).
     pub fn sasl_external_bind(&self) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let req = Tag::Sequence(Sequence {
             id: 0,
             class: TagClass::Application,

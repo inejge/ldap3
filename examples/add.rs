@@ -13,7 +13,7 @@ fn main() {
     }
 }
 
-fn do_add() -> Result<(), Box<Error>> {
+fn do_add() -> Result<(), Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     ldap.simple_bind("cn=Manager,dc=example,dc=org", "secret")?.success()?;
     let res = ldap.add(

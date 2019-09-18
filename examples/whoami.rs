@@ -12,7 +12,7 @@ fn main() {
     }
 }
 
-fn do_whoami() -> Result<String, Box<Error>> {
+fn do_whoami() -> Result<String, Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     ldap.simple_bind("cn=Manager,dc=example,dc=org", "secret")?.success()?;
     let (exop, _res) = ldap.extended(WhoAmI)?.success()?;

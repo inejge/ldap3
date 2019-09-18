@@ -13,7 +13,7 @@ fn main() {
     }
 }
 
-fn do_whoami() -> Result<String, Box<Error>> {
+fn do_whoami() -> Result<String, Box<dyn Error>> {
     let ldap = LdapConn::new("ldapi://ldapi")?;
     ldap.simple_bind("cn=proxy,dc=example,dc=org", "topsecret")?.success()?;
     let (exop, _res) = ldap

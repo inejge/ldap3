@@ -10,6 +10,5 @@ documentation = "https://docs.rs/ldap3"
 version = "0.1.6"
 
 [dependencies]
-byteorder = "1.0.0"
 bytes = "0.4.1"
 nom = "2.0.1"

@@ -12,7 +12,7 @@ use result::LdapResult;
 impl Ldap {
     /// See [`LdapConn::modifydn()`](struct.LdapConn.html#method.modifydn).
     pub fn modifydn(&self, dn: &str, rdn: &str, delete_old: bool, new_sup: Option<&str>) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let mut params = vec![
            Tag::OctetString(OctetString {
                inner: Vec::from(dn.as_bytes()),

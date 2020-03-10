@@ -47,7 +47,7 @@ fn create_bind_request(token: Vec<u8>) -> Tag {
 impl Ldap {
     /// See [`LdapConn::sasl_spnego_bind()`](struct.LdapConn.html#method.sasl_spnego_bind).
     pub fn sasl_spnego_bind(&self, username: &str, password: &str) ->
-    Box<Future<Item=LdapResult, Error=io::Error>> {
+    Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let mut spnego_client = spnego::Client::new(username, password);
 
         let input = Vec::new();

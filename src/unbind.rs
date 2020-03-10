@@ -11,7 +11,7 @@ use ldap::{Ldap, LdapOp};
 impl Ldap {
     /// See [`LdapConn::unbind()`](struct.LdapConn.html#method.unbind).
     pub fn unbind(&self) ->
-            Box<Future<Item=(), Error=io::Error>> {
+            Box<dyn Future<Item=(), Error=io::Error>> {
         let req = Tag::Null(Null {
             id: 2,
             class: TagClass::Application,

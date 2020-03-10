@@ -19,7 +19,7 @@ fn main() {
     }
 }
 
-fn do_connection(server_url: &str, username: &str, password: &str) -> Result<(), Box<Error>> {
+fn do_connection(server_url: &str, username: &str, password: &str) -> Result<(), Box<dyn Error>> {
     let ldap = LdapConn::new(server_url)?;
     let _response = ldap.sasl_spnego_bind(username, password)?.success()?;
     Ok(())

@@ -17,7 +17,7 @@ impl Ldap {
     /// [`EntryStream::abandon()`](struct.EntryStream.html#method.abandon) and
     /// [`SearchStream::get_abandon_channel()`](struct.SearchStream.html#method.get_abandon_channel).
     pub fn abandon(&self, msgid: LdapRequestId) ->
-            Box<Future<Item=(), Error=io::Error>> {
+            Box<dyn Future<Item=(), Error=io::Error>> {
         let bundle = bundle(self);
         if !bundle.borrow().id_map.contains_key(&msgid) {
             return Box::new(future::err(io::Error::new(io::ErrorKind::Other, format!("msgid {} not an active operation", msgid))));

@@ -15,13 +15,13 @@ fn main() {
     }
 }
 
-fn custom_connector() -> Result<TlsConnector, Box<Error>> {
+fn custom_connector() -> Result<TlsConnector, Box<dyn Error>> {
     let mut builder = TlsConnector::builder();
     builder.danger_accept_invalid_certs(true);
     Ok(builder.build()?)
 }
 
-fn do_tls_conn() -> Result<(), Box<Error>> {
+fn do_tls_conn() -> Result<(), Box<dyn Error>> {
     let settings = LdapConnSettings::new()
         .set_no_tls_verify(true)
         .set_connector(custom_connector()?);

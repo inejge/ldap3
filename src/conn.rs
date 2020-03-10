@@ -35,8 +35,8 @@ impl LdapWrapper {
         self.inner.clone()
     }
 
-    fn connect(addr: Box<Future<Item=SocketAddr, Error=io::Error>>, handle: &Handle, settings: LdapConnSettings)
-        -> Box<Future<Item=LdapWrapper, Error=io::Error>>
+    fn connect(addr: Box<dyn Future<Item=SocketAddr, Error=io::Error>>, handle: &Handle, settings: LdapConnSettings)
+        -> Box<dyn Future<Item=LdapWrapper, Error=io::Error>>
     {
         let handle = handle.clone();
         let lw = addr.and_then(move |addr| Ldap::connect(&addr, &handle, settings))
@@ -49,8 +49,8 @@ impl LdapWrapper {
     }
 
     #[cfg(feature = "tls")]
-    fn connect_ssl(addr: Box<Future<Item=SocketAddr, Error=io::Error>>, hostname: &str, handle: &Handle, settings: LdapConnSettings)
-        -> Box<Future<Item=LdapWrapper, Error=io::Error>>
+    fn connect_ssl(addr: Box<dyn Future<Item=SocketAddr, Error=io::Error>>, hostname: &str, handle: &Handle, settings: LdapConnSettings)
+        -> Box<dyn Future<Item=LdapWrapper, Error=io::Error>>
     {
         let handle = handle.clone();
         let hostname = hostname.to_owned();
@@ -65,7 +65,7 @@ impl LdapWrapper {
 
     #[cfg(all(unix, not(feature = "minimal")))]
     fn connect_unix(path: &str, handle: &Handle, settings: LdapConnSettings)
-        -> Box<Future<Item=LdapWrapper, Error=io::Error>>
+        -> Box<dyn Future<Item=LdapWrapper, Error=io::Error>>
     {
         let lw = Ldap::connect_unix(path, handle, settings)
             .map(|ldap| {
@@ -394,7 +394,7 @@ impl LdapConn {
 /// ```
 #[derive(Clone)]
 pub struct LdapConnAsync {
-    in_progress: Rc<RefCell<Box<Future<Item=LdapWrapper, Error=io::Error>>>>,
+    in_progress: Rc<RefCell<Box<dyn Future<Item=LdapWrapper, Error=io::Error>>>>,
     wrapper: Rc<RefCell<Option<LdapWrapper>>>,
 }
 
@@ -485,7 +485,7 @@ impl LdapConnAsync {
             Some(h) if h == "" => ("localhost", format!("localhost:{}", port)),
             _ => panic!("unexpected None from url.host_str()"),
         };
-        let addr: Box<Future<Item=SocketAddr, Error=io::Error>> = match url.host() {
+        let addr: Box<dyn Future<Item=SocketAddr, Error=io::Error>> = match url.host() {
             Some(Host::Ipv4(v4)) => Box::new(future::ok(SocketAddr::new(IpAddr::V4(v4), port))),
             Some(Host::Ipv6(v6)) => Box::new(future::ok(SocketAddr::new(IpAddr::V6(v6), port))),
             Some(Host::Domain(_)) => resolve_addr(&host_port, &settings),

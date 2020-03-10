@@ -463,7 +463,7 @@ impl SearchOptions {
 impl Ldap {
     /// See [`LdapConn::search()`](struct.LdapConn.html#method.search).
     pub fn search<S: AsRef<str>>(&self, base: &str, scope: Scope, filter: &str, attrs: Vec<S>) ->
-        Box<Future<Item=SearchResult, Error=io::Error>>
+        Box<dyn Future<Item=SearchResult, Error=io::Error>>
     {
         let srch = self
             .streaming_search(base, scope, filter, attrs)
@@ -488,7 +488,7 @@ impl Ldap {
     /// [`get_result_rx()`](struct.SearchStream.html#method.get_result_rx). The stream and
     /// the receiver should be polled concurrently with `Future::join()`.
     pub fn streaming_search<S: AsRef<str>>(&self, base: &str, scope: Scope, filter: &str, attrs: Vec<S>) ->
-        Box<Future<Item=SearchStream, Error=io::Error>>
+        Box<dyn Future<Item=SearchStream, Error=io::Error>>
     {
         let opts = match next_search_options(self) {
             Some(opts) => opts,

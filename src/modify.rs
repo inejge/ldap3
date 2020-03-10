@@ -26,7 +26,7 @@ pub enum Mod<S: AsRef<[u8]> + Eq + Hash> {
 impl Ldap {
     /// See [`LdapConn::modify()`](struct.LdapConn.html#method.modify).
     pub fn modify<S: AsRef<[u8]> + Eq + Hash>(&self, dn: &str, mods: Vec<Mod<S>>) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let mut any_add_empty = false;
         let req = Tag::Sequence(Sequence {
             id: 6,

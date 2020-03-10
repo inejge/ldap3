@@ -1,6 +1,9 @@
 extern crate ldap3;
 
 use std::env;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 use std::error::Error;
 
 use ldap3::{LdapConn,LdapConnSettings};
@@ -12,7 +15,7 @@ fn main() {
     }
 }
 
-fn connect() -> Result<(), Box<Error>> {
+fn connect() -> Result<(), Box<dyn Error>> {
     let mut ldap_server_url: Option<&str> = None;
     let mut ldap_username: Option<&str> = None;
     let mut ldap_password: Option<&str> = None;
@@ -77,12 +80,8 @@ fn connect() -> Result<(), Box<Error>> {
     if let Some(ldap_trusted_root_ca_file) = ldap_trusted_root_ca_file {
         println!("LdapTrustedRootCaFile: {}", ldap_trusted_root_ca_file);
 
-        use std::fs::File;
-        use std::io::Read;
-        use std::path::Path;
-
         let mut root_certificate = Vec::new();
-        std::fs::File::open(&Path::new(ldap_trusted_root_ca_file))
+        File::open(&Path::new(ldap_trusted_root_ca_file))
             .expect("Could not open certificate")
             .read_to_end(&mut root_certificate)
             .expect("Could not read certificate");

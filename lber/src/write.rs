@@ -29,7 +29,7 @@ fn encode_inner(buf: &mut Vec<u8>, tag: StructureTag) -> io::Result<()> {
         PL::C(tags) => {
             let mut tmp = Vec::new();
             for tag in tags {
-                try!(encode_inner(&mut tmp, tag));
+                encode_inner(&mut tmp, tag)?;
             }
             write_length(buf, tmp.len());
             buf.extend(tmp);
@@ -39,7 +39,7 @@ fn encode_inner(buf: &mut Vec<u8>, tag: StructureTag) -> io::Result<()> {
     Ok(())
 }
 
-fn write_type(w: &mut Write, class: TagClass, structure: TagStructure, id: u64) {
+fn write_type(w: &mut dyn Write, class: TagClass, structure: TagStructure, id: u64) {
     let extended_tag: Option<Vec<u8>>;
 
     let type_byte = {
@@ -95,7 +95,7 @@ fn write_type(w: &mut Write, class: TagClass, structure: TagStructure, id: u64) 
 }
 
 // Yes I know you could overflow the length in theory. But, do you have 2^64 bytes of memory?
-fn write_length(w: &mut Write, length: usize) {
+fn write_length(w: &mut dyn Write, length: usize) {
     // Short form
     if length < 128
     {

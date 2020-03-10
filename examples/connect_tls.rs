@@ -11,7 +11,7 @@ fn main() {
     }
 }
 
-fn do_tls_conn() -> Result<(), Box<Error>> {
+fn do_tls_conn() -> Result<(), Box<dyn Error>> {
     let ldap = LdapConn::new("ldaps://ldap.example.com")?;
     ldap.simple_bind("cn=user,ou=People,dc=example,dc=com", "secret")?.success()?;
     Ok(())

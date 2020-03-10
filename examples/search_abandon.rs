@@ -13,7 +13,7 @@ fn main() {
     }
 }
 
-fn do_abandon() -> Result<LdapResult, Box<Error>> {
+fn do_abandon() -> Result<LdapResult, Box<dyn Error>> {
     let ldap = LdapConn::new("ldap://localhost:2389")?;
     let mut count = 0;
     let mut strm = ldap.streaming_search(

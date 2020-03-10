@@ -232,7 +232,7 @@ impl Decoder for LdapCodec {
 }
 
 impl Encoder for LdapCodec {
-    type Item = (RequestId, (LdapOp, Box<Fn(i32)>));
+    type Item = (RequestId, (LdapOp, Box<dyn Fn(i32)>));
     type Error = io::Error;
 
     fn encode(&mut self, msg: Self::Item, into: &mut BytesMut) -> io::Result<()> {
@@ -340,9 +340,9 @@ impl<T> Stream for ResponseFilter<T>
 }
 
 impl<T> futures::Sink for ResponseFilter<T>
-    where T: futures::Sink<SinkItem=(RequestId, (LdapOp, Box<Fn(i32)>)), SinkError=io::Error>
+    where T: futures::Sink<SinkItem=(RequestId, (LdapOp, Box<dyn Fn(i32)>)), SinkError=io::Error>
 {
-    type SinkItem = (RequestId, (LdapOp, Box<Fn(i32)>));
+    type SinkItem = (RequestId, (LdapOp, Box<dyn Fn(i32)>));
     type SinkError = io::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
@@ -355,7 +355,7 @@ impl<T> futures::Sink for ResponseFilter<T>
 }
 
 impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for LdapProto {
-    type Request = (LdapOp, Box<Fn(i32)>);
+    type Request = (LdapOp, Box<dyn Fn(i32)>);
     type Response = (Tag, Vec<Control>);
 
     type Transport = ResponseFilter<Framed<T, LdapCodec>>;

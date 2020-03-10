@@ -13,7 +13,7 @@ use result::{CompareResult, LdapResult};
 impl Ldap {
     /// See [`LdapConn::compare()`](struct.LdapConn.html#method.compare).
     pub fn compare<B: AsRef<[u8]>>(&self, dn: &str, attr: &str, val: B) ->
-            Box<Future<Item=CompareResult, Error=io::Error>> {
+            Box<dyn Future<Item=CompareResult, Error=io::Error>> {
         let req = Tag::Sequence(Sequence {
             id: 14,
             class: TagClass::Application,

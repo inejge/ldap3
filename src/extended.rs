@@ -15,7 +15,7 @@ use result::ExopResult;
 impl Ldap {
     /// See [`LdapConn::extended()`](struct.LdapConn.html#method.extended).
     pub fn extended<E>(&self, exop: E) ->
-        Box<Future<Item=ExopResult, Error=io::Error>>
+        Box<dyn Future<Item=ExopResult, Error=io::Error>>
         where E: Into<Exop>
     {
         let req = Tag::Sequence(Sequence {

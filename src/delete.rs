@@ -12,7 +12,7 @@ use result::LdapResult;
 impl Ldap {
     /// See [`LdapConn::delete()`](struct.LdapConn.html#method.delete).
     pub fn delete(&self, dn: &str) ->
-            Box<Future<Item=LdapResult, Error=io::Error>> {
+            Box<dyn Future<Item=LdapResult, Error=io::Error>> {
         let req = Tag::OctetString(OctetString {
             id: 10,
             class: TagClass::Application,

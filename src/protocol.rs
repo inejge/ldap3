@@ -22,7 +22,7 @@ use lber::universal::Types;
 use lber::write;
 
 use controls::Control;
-use controls_impl::{parse_controls, build_tag};
+use controls_impl::{parse_controls, parse_bind_response, build_tag};
 use exop::Exop;
 use ldap::LdapOp;
 use result::LdapResult;
@@ -217,6 +217,11 @@ impl Decoder for LdapCodec {
                     helper.seen = true;
                     Ok(Some((id, (id_tag, vec![]))))
                 }
+            },
+            1 => {
+                let controls = parse_bind_response(protoop.clone());
+                self.bundle.borrow_mut().id_map.remove(&msgid);
+                Ok(Some((id, (Tag::StructureTag(protoop), controls))))
             },
             _ => {
                 self.bundle.borrow_mut().id_map.remove(&msgid);

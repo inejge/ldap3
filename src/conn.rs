@@ -229,6 +229,11 @@ impl LdapConn {
         Ok(self.core.borrow_mut().run(self.inner.clone().sasl_external_bind())?)
     }
 
+    /// Do a SASL GSS-SPNEGO bind (SSPI Negotiate module, NTLM or Kerberos)
+    pub fn sasl_spnego_bind(&self, username: &str, password: &str) -> io::Result<LdapResult> {
+        Ok(self.core.borrow_mut().run(self.inner.clone().sasl_spnego_bind(username, password))?)
+    }
+
     /// Use the provided `SearchOptions` with the next Search operation, which can
     /// be invoked directly on the result of this method. If this method is used in
     /// combination with a non-Search operation, the provided options will be silently

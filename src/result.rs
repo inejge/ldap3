@@ -11,7 +11,7 @@ use std::fmt;
 use std::io;
 use std::result::Result;
 
-use controls::Control;
+use controls::{Control,types};
 use exop::Exop;
 use protocol::LdapResultExt;
 use search::ResultEntry;
@@ -139,6 +139,28 @@ impl LdapResult {
         } else {
             Err(io::Error::new(io::ErrorKind::Other, self))
         }
+    }
+
+    /// If the result code is 0 or 14 (saslBindInProgress), return the instance
+    /// itself wrapped in `Ok()`, otherwise wrap the instance in an
+    /// `io::Error`.
+    pub fn bind_ok(self) -> Result<Self, io::Error> {
+        if self.rc == 0 || self.rc == 14 {
+            Ok(self)
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, self))
+        }
+    }
+
+    pub fn get_bind_token(&mut self) -> Option<Vec<u8>> {
+        for ctrl in &self.ctrls {
+            if ctrl.0 == Some(types::BindResponse) {
+                if let Some(val) = ctrl.1.val.clone() {
+                    return Some(val);
+                }
+            }
+        }
+        None
     }
 }
 

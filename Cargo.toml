@@ -32,6 +32,9 @@ tokio-uds-proto = "0.1"
 path = "lber"
 version = "0.1.6"
 
+[dependencies.sspi]
+version = "0.1.1"
+
 [dependencies.tokio-tls]
 version = "0.2"
 optional = true

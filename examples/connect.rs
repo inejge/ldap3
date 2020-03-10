@@ -72,11 +72,24 @@ fn connect() -> Result<(), Box<Error>> {
     println!("LdapBindType: {}", ldap_bind_type);
     println!("LdapCertificateValidation: {}", ldap_certificate_validation);
 
+    let mut ldap_settings = LdapConnSettings::new().set_no_tls_verify(!ldap_certificate_validation);
+
     if let Some(ldap_trusted_root_ca_file) = ldap_trusted_root_ca_file {
         println!("LdapTrustedRootCaFile: {}", ldap_trusted_root_ca_file);
+
+        use std::fs::File;
+        use std::io::Read;
+        use std::path::Path;
+
+        let mut root_certificate = Vec::new();
+        std::fs::File::open(&Path::new(ldap_trusted_root_ca_file))
+            .expect("Could not open certificate")
+            .read_to_end(&mut root_certificate)
+            .expect("Could not read certificate");
+
+        ldap_settings = ldap_settings.add_root_certificate(root_certificate.as_slice());
     }
 
-    let ldap_settings = LdapConnSettings::new().set_no_tls_verify(!ldap_certificate_validation);
     let ldap_connection = LdapConn::with_settings(ldap_settings, ldap_server_url)?;
 
     if ldap_bind_type == "spnego" {

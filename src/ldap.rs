@@ -11,6 +11,7 @@ use futures::{Future, IntoFuture};
 use futures::sync::mpsc;
 #[cfg(feature = "tls")]
 use native_tls::TlsConnector;
+use native_tls::Certificate;
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::{Handle, Timeout};
 use tokio_proto::TcpClient;
@@ -153,6 +154,12 @@ impl Ldap {
 
                 if settings.no_tls_verify {
                     builder.danger_accept_invalid_certs(true);
+                }
+
+                for root_certificate in settings.root_certificates {
+                    let certificate = Certificate::from_der(&root_certificate).or_else(|e|
+                        Certificate::from_pem(&root_certificate)).expect("unable to parse root certificate");
+                    builder.add_root_certificate(certificate);
                 }
 
                 builder.build().expect("connector")
@@ -301,6 +308,8 @@ pub struct LdapConnSettings {
     #[cfg(feature = "tls")]
     starttls: bool,
     no_tls_verify: bool,
+    #[cfg(feature = "tls")]
+    root_certificates: Vec<Vec<u8>>,
     resolver: Option<Rc<Fn(&str) -> Box<Future<Item=SocketAddr, Error=io::Error>>>>,
 }
 
@@ -353,6 +362,12 @@ impl LdapConnSettings {
     /// a connector for which `SSL_VERIFY_NONE` has been set.
     pub fn set_no_tls_verify(mut self, no_tls_verify: bool) -> Self {
         self.no_tls_verify = no_tls_verify;
+        self
+    }
+
+    #[cfg(feature = "tls")]
+    pub fn add_root_certificate(mut self, root_certificate: &[u8]) -> Self {
+        self.root_certificates.push(root_certificate.to_vec());
         self
     }
 

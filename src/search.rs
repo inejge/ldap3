@@ -145,16 +145,17 @@ pub struct SearchEntry {
     pub bin_attrs: HashMap<String, Vec<Vec<u8>>>,
 }
 
-impl SearchEntry {
+impl From<ResultEntry> for SearchEntry {
     /// Parse raw BER data and convert it into attribute map(s).
     ///
     /// __Note__: this function will panic on parsing error.
-    pub fn construct(re: ResultEntry) -> SearchEntry {
+    fn from(re: ResultEntry) -> SearchEntry {
         let mut tags =
             re.0.match_id(4)
                 .and_then(|t| t.expect_constructed())
                 .expect("entry")
                 .into_iter();
+
         let dn = String::from_utf8(
             tags.next()
                 .expect("element")
@@ -162,14 +163,17 @@ impl SearchEntry {
                 .expect("octet string"),
         )
         .expect("dn");
+
         let mut attr_vals = HashMap::new();
         let mut bin_attr_vals = HashMap::new();
+
         let attrs = tags
             .next()
             .expect("element")
             .expect_constructed()
             .expect("attrs")
             .into_iter();
+
         for a_v in attrs {
             let mut part_attr = a_v
                 .expect_constructed()
@@ -183,7 +187,9 @@ impl SearchEntry {
                     .expect("octet string"),
             )
             .expect("attribute type");
+
             let mut any_binary = false;
+
             let values = part_attr
                 .next()
                 .expect("element")
@@ -203,6 +209,7 @@ impl SearchEntry {
                     None
                 })
                 .collect::<Vec<String>>();
+
             if any_binary {
                 bin_attr_vals.get_mut(&a_type).expect("bin vector").extend(
                     values
@@ -214,6 +221,7 @@ impl SearchEntry {
                 attr_vals.insert(a_type, values);
             }
         }
+
         SearchEntry {
             dn,
             attrs: attr_vals,

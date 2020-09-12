@@ -112,7 +112,7 @@ impl ControlParser for ReadEntryResp {
             IResult::Done(_, tag) => tag,
             _ => panic!("failed to parse pre-read attribute values"),
         };
-        let se = SearchEntry::construct(ResultEntry::new(tag));
+        let se = SearchEntry::from(ResultEntry::new(tag));
         ReadEntryResp {
             attrs: se.attrs,
             bin_attrs: se.bin_attrs,

@@ -260,7 +260,7 @@ impl Ldap {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &[S],
     ) -> Result<SearchResult> {
         let mut stream = self
             .streaming_search_with(EntriesOnly::new(), base, scope, filter, attrs)
@@ -282,7 +282,7 @@ impl Ldap {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<SearchStream<'a, S>> {
         self.streaming_search_with(vec![], base, scope, filter, attrs)
             .await
@@ -301,7 +301,7 @@ impl Ldap {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<SearchStream<'a, S>> {
         let mut ldap = self.clone();
         ldap.controls = self.controls.take();

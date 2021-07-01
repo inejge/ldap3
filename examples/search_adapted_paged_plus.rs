@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
             "dc=example,dc=org",
             Scope::Subtree,
             "(objectClass=*)",
-            vec!["dn"],
+            &["dn"],
         )
         .await?;
     while let Some(entry) = search.next().await? {

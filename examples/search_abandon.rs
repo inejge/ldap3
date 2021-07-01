@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
             "ou=Places,dc=example,dc=org",
             Scope::Subtree,
             "objectClass=locality",
-            vec!["l"],
+            &["l"],
         )
         .await?;
     while let Some(_r) = stream.next().await? {

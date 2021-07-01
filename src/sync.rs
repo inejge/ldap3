@@ -111,7 +111,7 @@ impl LdapConn {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<SearchResult> {
         let rt = &mut self.rt;
         let ldap = &mut self.ldap;
@@ -126,7 +126,7 @@ impl LdapConn {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<EntryStream<'a, 'b, S>> {
         let rt = &mut self.rt;
         let ldap = &mut self.ldap;
@@ -148,7 +148,7 @@ impl LdapConn {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<EntryStream<'a, 'b, S>> {
         let rt = &mut self.rt;
         let ldap = &mut self.ldap;

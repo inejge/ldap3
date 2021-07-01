@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         "dc=example,dc=org",
         Scope::Subtree,
         "(objectClass=*)",
-        vec!["dn"],
+        &["dn"],
     )?;
     while let Some(entry) = search.next()? {
         let entry = SearchEntry::construct(entry);

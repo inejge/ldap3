@@ -102,7 +102,7 @@ use async_trait::async_trait;
 ///         base: &str,
 ///         scope: Scope,
 ///         filter: &str,
-///         attrs: Vec<S>,
+///         attrs: &'a [S],
 ///     ) -> Result<()> {
 ///         self.refs.as_mut().expect("refs").clear();
 ///         // Call up the adapter chain
@@ -151,7 +151,7 @@ pub trait Adapter<'a, S>: AdapterClone<'a, S> + Debug + Send + Sync + 'a {
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<()>;
 
     /// Fetch the next entry from the stream.
@@ -221,7 +221,7 @@ where
 ///     "",
 ///     Scope::Base,
 ///     "(objectClass=*)",
-///     vec!["+"]
+///     &["+"]
 /// );
 /// # let _ = stream;
 /// ```
@@ -251,7 +251,7 @@ where
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<()> {
         self.refs.as_mut().expect("refs").clear();
         stream.start(base, scope, filter, attrs).await
@@ -291,18 +291,18 @@ where
 /// retrieved in the first protocol operation, the adapter will automatically issue
 /// further Searches until the whole search is done.
 #[derive(Clone, Debug)]
-pub struct PagedResults<S> {
+pub struct PagedResults<'a, S> {
     page_size: i32,
     ldap: Option<Ldap>,
     base: String,
     scope: Scope,
     filter: String,
-    attrs: Vec<S>,
+    attrs: &'a[S],
 }
 
-impl<S> SoloMarker for PagedResults<S> {}
+impl<'a, S> SoloMarker for PagedResults<'a, S> {}
 
-impl<S> PagedResults<S> {
+impl<'a, S> PagedResults<'a, S> {
     /// Construct a new adapter instance with the requested page size.
     pub fn new(page_size: i32) -> Self {
         Self {
@@ -311,13 +311,13 @@ impl<S> PagedResults<S> {
             base: String::from(""),
             scope: Scope::Base,
             filter: String::from(""),
-            attrs: vec![],
+            attrs: &[],
         }
     }
 }
 
 #[async_trait]
-impl<'a, S> Adapter<'a, S> for PagedResults<S>
+impl<'a, S> Adapter<'a, S> for PagedResults<'a, S>
 where
     S: AsRef<str> + Clone + Debug + Send + Sync + 'a,
 {
@@ -327,7 +327,7 @@ where
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<()> {
         let mut stream = stream;
         let stream_ldap = stream.ldap_handle();
@@ -370,7 +370,7 @@ where
         self.base = String::from(base);
         self.scope = scope;
         self.filter = String::from(filter);
-        self.attrs = attrs.clone();
+        self.attrs = attrs;
         stream.start(base, scope, filter, attrs).await
     }
 
@@ -409,7 +409,7 @@ where
                                     &self.base,
                                     self.scope,
                                     &self.filter,
-                                    self.attrs.clone(),
+                                    self.attrs,
                                 )
                                 .await
                             {

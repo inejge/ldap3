@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
             "ou=Places,dc=example,dc=org",
             Scope::Subtree,
             "(&(l=ma*)(objectClass=locality))",
-            vec!["l"],
+            &["l"],
         )
         .await?;
     while let Some(entry) = search.next().await? {

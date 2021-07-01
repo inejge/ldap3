@@ -16,7 +16,7 @@ fn main() -> Result<()> {
             "ou=People,dc=example,dc=org",
             Scope::OneLevel,
             "(|(uid=test)(uid=next))",
-            vec!["uid"],
+            &["uid"],
         )?
         .success()?;
     let sr = SearchEntry::construct(rs.into_iter().next().expect("entry"));

@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
             "dc=example,dc=org",
             Scope::OneLevel,
             "(objectClass=*)",
-            vec!["*"],
+            &["*"],
         )
         .await?;
     while let Some(entry) = search.next().await? {
@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
             "dc=example,dc=org",
             Scope::OneLevel,
             "(objectClass=*)",
-            vec!["*"],
+            &["*"],
         )
         .await?;
     while let Some(entry) = search.next().await? {

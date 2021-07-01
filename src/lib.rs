@@ -55,7 +55,7 @@
 //!         "ou=Places,dc=example,dc=org",
 //!         Scope::Subtree,
 //!         "(&(objectClass=locality)(l=ma*))",
-//!         vec!["l"]
+//!         &["l"]
 //!     )?.success()?;
 //!     for entry in rs {
 //!         println!("{:?}", SearchEntry::construct(entry));
@@ -78,7 +78,7 @@
 //!         "ou=Places,dc=example,dc=org",
 //!         Scope::Subtree,
 //!         "(&(objectClass=locality)(l=ma*))",
-//!         vec!["l"]
+//!         &["l"]
 //!     ).await?.success()?;
 //!     for entry in rs {
 //!         println!("{:?}", SearchEntry::construct(entry));

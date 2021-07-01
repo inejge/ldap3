@@ -20,7 +20,7 @@ fn main() -> Result<()> {
             "uid=inejge,ou=People,dc=example,dc=org",
             Scope::Base,
             "(objectClass=account)",
-            vec!["*"],
+            &["*"],
         )?
         .success()?;
     let mod_vec = match rs.len() {

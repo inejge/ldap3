@@ -16,7 +16,7 @@ fn main() -> Result<()> {
             params.base.as_ref(),
             params.scope,
             params.filter.as_ref(),
-            params.attrs,
+            &params.attrs,
         )?
         .success()?;
     for entry in rs {

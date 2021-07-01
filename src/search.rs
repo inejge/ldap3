@@ -603,7 +603,7 @@ where
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &[S],
     ) -> Result<()> {
         let opts = match self.ldap.search_opts.take() {
             Some(opts) => opts,
@@ -729,7 +729,7 @@ where
         base: &str,
         scope: Scope,
         filter: &str,
-        attrs: Vec<S>,
+        attrs: &'a [S],
     ) -> Result<()> {
         if self.state != StreamState::Fresh {
             return Ok(());

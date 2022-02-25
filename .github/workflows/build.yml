@@ -17,6 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2019, macOS-latest]
         rust: [stable, nightly]
+        features: ["default", "sync tls-rustls"]
 
     steps:
       - name: Checkout code
@@ -33,7 +34,7 @@ jobs:
           RUSTFLAGS: '-D warnings'
         with:
           command: build
-          args: --verbose
+          args: --verbose --no-default-features --features ${{ matrix.features }}
       - name: Run tests
         uses: actions-rs/cargo@v1
         # force to build tests without warnings
@@ -41,7 +42,7 @@ jobs:
           RUSTFLAGS: '-D warnings'
         with:
           command: test
-          args: --verbose
+          args: --verbose --no-default-features --features ${{ matrix.features }}
 
   rustfmt_check:
 

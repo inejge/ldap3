@@ -26,7 +26,7 @@ use native_tls::TlsConnector;
 #[cfg(unix)]
 use percent_encoding::percent_decode;
 #[cfg(feature = "tls-rustls")]
-use rustls::ClientConfig;
+use rustls::{Certificate, ClientConfig, ServerName};
 use tokio::io::{self, AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpStream;
 #[cfg(unix)]
@@ -58,15 +58,17 @@ enum ConnType {
 struct NoCertVerification;
 
 #[cfg(feature = "tls-rustls")]
-impl rustls::ServerCertVerifier for NoCertVerification {
+impl rustls::client::ServerCertVerifier for NoCertVerification {
     fn verify_server_cert(
         &self,
-        _: &rustls::RootCertStore,
-        _: &[rustls::Certificate],
-        _: tokio_rustls::webpki::DNSNameRef,
+        _: &Certificate,
+        _: &[Certificate],
+        _: &ServerName,
+        _: &mut dyn Iterator<Item = &[u8]>,
         _: &[u8],
-    ) -> core::result::Result<rustls::ServerCertVerified, rustls::TLSError> {
-        Ok(rustls::ServerCertVerified::assertion())
+        _: std::time::SystemTime,
+    ) -> core::result::Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
     }
 }
 
@@ -432,15 +434,16 @@ impl LdapConnAsync {
         };
         TokioTlsConnector::from(config)
             .connect(
-                tokio_rustls::webpki::DNSNameRef::try_from_ascii_str(hostname).or_else(|e| {
+                ServerName::try_from(hostname).or_else(|_e| {
                     if no_tls_verify {
                         if let Ok(_addr) = IpAddr::from_str(hostname) {
-                            tokio_rustls::webpki::DNSNameRef::try_from_ascii_str("_irrelevant")
+                            ServerName::try_from("_irrelevant")
+                                .map_err(|_| tokio_rustls::webpki::InvalidDnsNameError)
                         } else {
-                            Err(e)
+                            Err(tokio_rustls::webpki::InvalidDnsNameError)
                         }
                     } else {
-                        Err(e)
+                        Err(tokio_rustls::webpki::InvalidDnsNameError)
                     }
                 })?,
                 stream,
@@ -451,13 +454,18 @@ impl LdapConnAsync {
 
     #[cfg(feature = "tls-rustls")]
     fn create_config(settings: &LdapConnSettings) -> Arc<ClientConfig> {
-        let mut config = ClientConfig::new();
+        let mut config = ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(rustls::RootCertStore::empty())
+            .with_no_client_auth();
+
         if settings.no_tls_verify {
             let no_cert_verifier = NoCertVerification;
             config
                 .dangerous()
                 .set_certificate_verifier(Arc::new(no_cert_verifier));
         }
+
         Arc::new(config)
     }
 

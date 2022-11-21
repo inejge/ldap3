@@ -14,13 +14,14 @@ use crate::result::{
     CompareResult, ExopResult, LdapError, LdapResult, LdapResultExt, Result, SearchResult,
 };
 use crate::search::{Scope, SearchOptions, SearchStream};
-use crate::RequestId;
+use crate::{RequestId, SearchEntry};
 
 use lber::common::TagClass;
 use lber::structures::{Boolean, Enumerated, Integer, Null, OctetString, Sequence, Set, Tag};
 
 #[cfg(feature = "gssapi")]
 use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
+use rsasl::prelude::{Mechname, SASLClient, SASLConfig};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 
@@ -270,6 +271,112 @@ impl Ldap {
     pub async fn sasl_external_bind(&mut self) -> Result<LdapResult> {
         let req = sasl_bind_req("EXTERNAL", Some(b""));
         Ok(self.op_call(LdapOp::Single, req).await?.0)
+    }
+
+    pub async fn sasl_bind(&mut self, sasl: Arc<SASLConfig>) -> Result<()> {
+        const SASL_MECH_ATTR: &str = "supportedSASLMechanisms";
+        const LDAP_RESULT_OK: u32 = 0;
+        const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
+
+        let res = self
+            .search("", Scope::Base, "(objectClass=*)", [SASL_MECH_ATTR])
+            .await?;
+        let (mut results, _) = res.non_error()?;
+        let root_dse_res = results.pop().ok_or(LdapError::NoRootDSE)?;
+        let mut root_dse = SearchEntry::construct(root_dse_res);
+        let avail_mechanisms = root_dse
+            .attrs
+            .remove(SASL_MECH_ATTR)
+            .unwrap_or(Vec::with_capacity(0));
+
+        let mechs: Vec<&Mechname> = avail_mechanisms
+            .iter()
+            .filter_map(|raw| Mechname::parse(raw.as_bytes()).ok())
+            .collect();
+
+        let client = SASLClient::new(sasl);
+        let mut session = client.start_suggested(mechs.iter())?;
+
+        let mut last_rc = 0u32;
+        // If the selected mechanism is client-first, we set input to None and go to the main
+        // authentication loop.
+        // If the mechanism is server-first we must instead send a first bind call with no client
+        // credentials so the server can send us the initial SASL authentication token.
+        let mut input = if session.are_we_first() {
+            None
+        } else {
+            let req = sasl_bind_req(session.get_mechname(), None);
+            let ans = self.op_call(LdapOp::Single, req).await?;
+            if !matches!(
+                (ans.0).rc,
+                LDAP_RESULT_SASL_BIND_IN_PROGRESS | LDAP_RESULT_OK
+            ) {
+                return Err(LdapError::LdapResult { result: ans.0 });
+            }
+            last_rc = ans.0.rc;
+            ans.2 .0
+        };
+
+        let mut data = Vec::new();
+        // Main SASL authentication loop
+        while {
+            // Call step with the token input. On the first loop this is either the initial sasl
+            // token returned by the server, or 'None' if the selected mechanism is client-first.
+            let state = session.step(input.as_deref(), &mut data)?;
+            // On all future loops the token input is set from the server response to our bind
+            // request.
+            // There is the special case that the last call to `session.step` did not generate
+            // any output. Notably, this can only happen if state.is_running() *will also* be
+            // false, meaning this can only happen on the last loop iteration.
+            // It may be expected, for example if the last bind response by the server contained
+            // all data that the client needed to finish authentication, and no further messages
+            // are required. It may be unexpected by the server, which is handled in the `else`
+            // case.
+            input = if state.has_sent_message() {
+                let req = sasl_bind_req(session.get_mechname(), Some(&data[..]));
+                let ans = self.op_call(LdapOp::Single, req).await?;
+                // Save the rc of this
+                last_rc = ans.0.rc;
+
+                if !matches!(
+                    (ans.0).rc,
+                    LDAP_RESULT_SASL_BIND_IN_PROGRESS | LDAP_RESULT_OK
+                ) {
+                    return Err(LdapError::LdapResult { result: ans.0 });
+                }
+
+                ans.2 .0
+            } else {
+                // In the case that the client does not want to send a message but the server does
+                // expect one (as indicated by `last_rc`), we send an bind request with no
+                // credentials. A server should either treat this as authentication failure if
+                // unexpected, or return a successful bindResponse if expected.
+                if last_rc == LDAP_RESULT_SASL_BIND_IN_PROGRESS {
+                    let req = sasl_bind_req(session.get_mechname(), None);
+                    let ans = self.op_call(LdapOp::Single, req).await?;
+                    if ans.0.rc != LDAP_RESULT_OK {
+                        return Err(LdapError::LdapResult { result: ans.0 });
+                    }
+                }
+                // Explicitly set the input to `None` to make sure we do not call `session.step`
+                // with the same input data twice.
+                None
+            };
+
+            // Clear the data buffer so the next call to `step` does not append to it.
+            data.clear();
+
+            // `state.is_running()` will return `true` if our end of the selected mechanism
+            // expects further calls to `session.step()` to be made. A dishonest server could try
+            // to circumvent mutual authentication by returning a success bindResponse early or
+            // without the data required for mutual authentication, so the server rc must not be
+            // relied on here. If a malicious server does try this attack vector relying only on
+            // `state.is_running()` will result in an additional call to `session.step()` with a
+            // `None` input token, which mechanism will special case as mutual authentication
+            // failure if it happens at that stage.
+            state.is_running()
+        } {}
+        Ok(())
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]

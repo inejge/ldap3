@@ -5,6 +5,7 @@
 //! helper methods, which adapt LDAP result and error handling to be a closer
 //! match to Rust conventions.
 
+use rsasl::prelude::{SASLError, SessionError};
 use std::error::Error;
 use std::fmt;
 use std::io;
@@ -163,6 +164,22 @@ pub enum LdapError {
     /// No token received from GSSAPI acceptor.
     #[error("no token received from acceptor")]
     NoGssapiToken,
+
+    #[error("Setting up SASL authentication failed")]
+    SaslError(
+        #[from]
+        #[source]
+        SASLError,
+    ),
+    #[error("SASL session operation failed")]
+    SaslSessionError(
+        #[from]
+        #[source]
+        SessionError,
+    ),
+
+    #[error("LDAP server did not return a root DSE")]
+    NoRootDSE,
 }
 
 impl From<LdapError> for io::Error {

@@ -150,8 +150,8 @@ pub enum LdapError {
     #[error("invalid scope string in LDAP URL: {0}")]
     InvalidScopeString(String),
 
-    /// Unreconized LDAP URL extension marked as critical.
-    #[error("unrecognized critical LDAP URL extension: {0}")]
+    /// Unrecognized LDAP control that was marked as "critical".
+    #[error("unrecognized critical LDAP control: {0}")]
     UnrecognizedCriticalExtension(String),
 
     #[cfg(feature = "gssapi")]

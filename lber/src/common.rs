@@ -23,6 +23,19 @@ pub enum TagClass {
     Private = 3,
 }
 
+#[cfg(feature = "serde")]
+extern crate serde;
+
+#[cfg(feature = "serde")]
+impl self::serde::Serialize for TagClass {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: self::serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
 impl TagClass {
     pub fn from_u8(n: u8) -> Option<TagClass> {
         match n {

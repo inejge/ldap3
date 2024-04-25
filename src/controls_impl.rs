@@ -6,6 +6,9 @@ use lber::universal::Types;
 
 use lazy_static::lazy_static;
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 /// Recognized control types.
 ///
 /// The variants can't be exhaustively matched, since the list of
@@ -21,6 +24,25 @@ pub enum ControlType {
     SyncState,
     ManageDsaIt,
     MatchedValues,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ControlType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = match self {
+            ControlType::PagedResults => self::paged_results::PAGED_RESULTS_OID,
+            ControlType::PostReadResp => self::read_entry::POST_READ_OID,
+            ControlType::PreReadResp => self::read_entry::PRE_READ_OID,
+            ControlType::SyncDone => self::content_sync::SYNC_DONE_OID,
+            ControlType::SyncState => self::content_sync::SYNC_STATE_OID,
+            ControlType::ManageDsaIt => self::manage_dsa_it::MANAGE_DSA_IT_OID,
+            ControlType::MatchedValues => self::matched_values::MATCHED_VALUES_OID,
+        };
+        serializer.serialize_str(s)
+    }
 }
 
 mod assertion;
@@ -142,6 +164,20 @@ pub trait ControlParser {
 #[derive(Clone, Debug)]
 pub struct Control(pub Option<ControlType>, pub RawControl);
 
+#[cfg(feature = "serde")]
+impl Serialize for Control {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let mut ser = serializer.serialize_seq(Some(2))?;
+        ser.serialize_element(&self.0)?;
+        ser.serialize_element(&self.1)?;
+        ser.end()
+    }
+}
+
 /// Generic control.
 ///
 /// This struct can be used both for request and response controls. For requests, an
@@ -162,6 +198,28 @@ pub struct RawControl {
     pub crit: bool,
     /// Raw value of the control, if any.
     pub val: Option<Vec<u8>>,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for RawControl {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut seq = serializer.serialize_struct("RawControl", 3)?;
+        seq.serialize_field("ctype", &self.ctype)?;
+        seq.serialize_field("crit", &self.crit)?;
+        match self.val {
+            Some(ref v) => seq.serialize_field("val", v),
+            None => {
+                let v = Vec::<u8>::new();
+                seq.serialize_field("val", &v)
+            },
+        }?;
+        seq.end()
+    }
+
 }
 
 impl RawControl {

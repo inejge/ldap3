@@ -1,6 +1,9 @@
 use lber::common::TagClass;
 use lber::structures::{OctetString, Tag};
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 mod whoami;
 pub use self::whoami::{WhoAmI, WhoAmIResp};
 
@@ -21,6 +24,20 @@ pub struct Exop {
     pub name: Option<String>,
     /// Request or response value. It may be absent in both cases.
     pub val: Option<Vec<u8>>,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for Exop {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut seq = serializer.serialize_struct("Exop", 2)?;
+        seq.serialize_field("name", &self.name)?;
+        seq.serialize_field("val", &self.val)?;
+        seq.end()
+    }
 }
 
 impl Exop {

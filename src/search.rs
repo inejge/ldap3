@@ -17,6 +17,9 @@ use lber::common::TagClass;
 use lber::structure::StructureTag;
 use lber::structures::{Boolean, Enumerated, Integer, OctetString, Sequence, Tag};
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 /// Possible values for search scope.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Scope {
@@ -73,6 +76,19 @@ impl ResultEntry {
     /// Returns true if the enclosed entry is an intermediate message.
     pub fn is_intermediate(&self) -> bool {
         self.0.id == 25
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ResultEntry {fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut seq = serializer.serialize_struct("ResultEntry", 2)?;
+        seq.serialize_field("entry", &self.0)?;
+        seq.serialize_field("controls", &self.1)?;
+        seq.end()
     }
 }
 

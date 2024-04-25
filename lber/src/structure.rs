@@ -1,11 +1,32 @@
 use common::TagClass;
 
+#[cfg(feature = "serde")]
+extern crate serde;
+
 /// ASN.1 structure prepared for serialization.
 #[derive(Clone, PartialEq, Debug, Eq)]
 pub struct StructureTag {
     pub class: TagClass,
     pub id: u64,
     pub payload: PL,
+}
+
+#[cfg(feature = "serde")]
+impl self::serde::Serialize for StructureTag {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: self::serde::Serializer,
+    {
+        use self::serde::ser::SerializeStruct;
+        let mut seq = serializer.serialize_struct("StructureTag", 3)?;
+        seq.serialize_field("class", &self.class)?;
+        seq.serialize_field("element", &self.id)?;
+        match self.payload {
+            PL::P(ref v) => seq.serialize_field("payload", v),
+            PL::C(ref v) => seq.serialize_field("payload", v),
+        }?;
+        seq.end()
+    }
 }
 
 /// Tagged value payload.
@@ -15,6 +36,26 @@ pub enum PL {
     P(Vec<u8>),
     /// Constructed value.
     C(Vec<StructureTag>),
+}
+
+#[cfg(feature = "serde")]
+impl self::serde::Serialize for PL {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: self::serde::Serializer,
+    {
+        match *self {
+            PL::P(ref v) => serializer.serialize_bytes(v),
+            PL::C(ref v) => {
+                use self::serde::ser::SerializeSeq;
+                let mut ser = serializer.serialize_seq(Some(v.len()))?;
+                for e in v {
+                    ser.serialize_element(e)?;
+                }
+                ser.end()
+            }
+        }
+    }
 }
 
 impl StructureTag {

@@ -28,6 +28,9 @@ use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 
+#[cfg(feature = "serde")]
+use serde::Serialize;
+
 /// Type alias for the standard `Result` with the fixed `LdapError` error part.
 pub type Result<T> = std::result::Result<T, LdapError>;
 
@@ -204,6 +207,23 @@ pub struct LdapResult {
     ///
     /// Missing and empty controls are both represented by an empty vector.
     pub ctrls: Vec<Control>,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for LdapResult {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("LdapResult", 5)?;
+        s.serialize_field("rc", &self.rc)?;
+        s.serialize_field("matched", &self.matched)?;
+        s.serialize_field("text", &self.text)?;
+        s.serialize_field("refs", &self.refs)?;
+        s.serialize_field("ctrls", &self.ctrls)?;
+        s.end()
+    }
 }
 
 #[doc(hidden)]
@@ -403,6 +423,20 @@ impl From<Tag> for LdapResultExt {
 #[derive(Clone, Debug)]
 pub struct SearchResult(pub Vec<ResultEntry>, pub LdapResult);
 
+#[cfg(feature = "serde")]
+impl Serialize for SearchResult {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let mut ser = serializer.serialize_seq(Some(2))?;
+        ser.serialize_element(&self.0)?;
+        ser.serialize_element(&self.1)?;
+        ser.end()
+    }
+}
+
 impl SearchResult {
     /// If the result code is zero, return an anonymous tuple of component structs
     /// wrapped in `Ok()`, otherwise wrap the `LdapResult` part in an `LdapError`.
@@ -434,6 +468,16 @@ impl SearchResult {
 #[derive(Clone, Debug)]
 pub struct CompareResult(pub LdapResult);
 
+#[cfg(feature = "serde")]
+impl Serialize for CompareResult {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.0.serialize(serializer)
+    }
+}
+
 impl CompareResult {
     /// If the result code is 5 (compareFalse) or 6 (compareTrue), return the corresponding
     /// boolean value wrapped in `Ok()`, otherwise wrap the `LdapResult` part in an `LdapError`.
@@ -464,6 +508,20 @@ impl CompareResult {
 /// tuple of its components.
 #[derive(Clone, Debug)]
 pub struct ExopResult(pub Exop, pub LdapResult);
+
+#[cfg(feature = "serde")]
+impl Serialize for ExopResult {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let mut ser = serializer.serialize_seq(Some(2))?;
+        ser.serialize_element(&self.0)?;
+        ser.serialize_element(&self.1)?;
+        ser.end()
+    }
+}
 
 impl ExopResult {
     /// If the result code is zero, return an anonymous tuple of component structs

@@ -32,6 +32,7 @@ x509-parser = { version = "0.15.0", optional = true }
 ring = { version = "0.17.7", optional = true }
 cross-krb5 = { version = "0.3.0", optional = true }
 async-trait = "0.1.60"
+serde = { version = "1.0.198", features = ["derive"], optional = true }
 
 [dependencies.lber]
 path = "lber"
@@ -44,6 +45,7 @@ tls-native = ["native-tls", "tokio-native-tls", "tokio/rt"]
 tls-rustls = ["rustls", "tokio-rustls", "rustls-native-certs", "x509-parser", "ring", "tokio/rt"]
 sync = ["tokio/rt"]
 gssapi = ["cross-krb5"]
+serde = ["dep:serde", "lber/serde"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "io-util", "sync", "time", "net", "rt-multi-thread"] }

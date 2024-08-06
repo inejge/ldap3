@@ -396,6 +396,38 @@ impl LdapConnAsync {
         Self::from_url_with_settings(LdapConnSettings::new(), url).await
     }
 
+    /// Create a connection to an LDAP server from existing UnixStream.
+    #[cfg(unix)]
+    pub fn from_unix_stream(stream: UnixStream) -> (Self, Ldap) {
+        Self::conn_pair(ConnType::Unix(stream))
+    }
+
+    /// Create a connection to an LDAP server from existing UnixStream.
+    #[cfg(not(unix))]
+    pub fn from_unix_stream(stream: UnixStream) -> (Self, Ldap) {
+        unimplemented!("no Unix domain sockets on non-Unix platforms");
+    }
+
+    /// Create a connection to an LDAP server from existing TcpStream,
+    /// specified by an already parsed `Url`, using
+    /// `settings` to specify additional parameters.
+    pub async fn from_tcp_stream(
+        stream: TcpStream,
+        settings: LdapConnSettings,
+        url: &Url,
+    ) -> Result<(Self, Ldap)> {
+        let mut settings = settings;
+        let timeout = settings.conn_timeout.take();
+
+        let (scheme, hostname, _host_port) = Self::extract_scheme_host_port(url, &settings)?;
+        let conn_future = Self::new_tcp_stream(stream, scheme, hostname, settings);
+        if let Some(timeout) = timeout {
+            time::timeout(timeout, conn_future).await?
+        } else {
+            conn_future.await
+        }
+    }
+
     #[cfg(unix)]
     async fn new_unix(url: &Url, _settings: LdapConnSettings) -> Result<(Self, Ldap)> {
         let path = url.host_str().unwrap_or("");
@@ -415,8 +447,10 @@ impl LdapConnAsync {
         unimplemented!("no Unix domain sockets on non-Unix platforms");
     }
 
-    #[allow(unused_mut)]
-    async fn new_tcp(url: &Url, mut settings: LdapConnSettings) -> Result<(Self, Ldap)> {
+    fn extract_scheme_host_port<'a>(
+        url: &'a Url,
+        settings: &LdapConnSettings,
+    ) -> Result<(&'a str, &'a str, String)> {
         let mut port = 389;
         let scheme = match url.scheme() {
             s @ "ldap" => {
@@ -428,7 +462,6 @@ impl LdapConnAsync {
             }
             #[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
             s @ "ldaps" => {
-                settings = settings.set_starttls(false);
                 port = 636;
                 s
             }
@@ -437,12 +470,26 @@ impl LdapConnAsync {
         if let Some(url_port) = url.port() {
             port = url_port;
         }
-        let (_hostname, host_port) = match url.host_str() {
+        let (hostname, host_port) = match url.host_str() {
             Some(h) if !h.is_empty() => (h, format!("{}:{}", h, port)),
             Some(h) if !h.is_empty() => ("localhost", format!("localhost:{}", port)),
             _ => panic!("unexpected None from url.host_str()"),
         };
+        Ok((scheme, hostname, host_port))
+    }
+
+    async fn new_tcp(url: &Url, settings: LdapConnSettings) -> Result<(Self, Ldap)> {
+        let (scheme, hostname, host_port) = Self::extract_scheme_host_port(url, &settings)?;
         let stream = TcpStream::connect(host_port.as_str()).await?;
+        Self::new_tcp_stream(stream, scheme, hostname, settings).await
+    }
+
+    async fn new_tcp_stream(
+        stream: TcpStream,
+        scheme: &str,
+        hostname: &str,
+        settings: LdapConnSettings,
+    ) -> Result<(Self, Ldap)> {
         let (mut conn, mut ldap) = Self::conn_pair(ConnType::Tcp(stream));
         match scheme {
             "ldap" => (),
@@ -465,7 +512,7 @@ impl LdapConnAsync {
                 }
                 let parts = conn.stream.into_parts();
                 let tls_stream = if let ConnType::Tcp(stream) = parts.io {
-                    LdapConnAsync::create_tls_stream(settings, _hostname, stream).await?
+                    LdapConnAsync::create_tls_stream(settings, hostname, stream).await?
                 } else {
                     panic!("underlying stream not TCP");
                 };

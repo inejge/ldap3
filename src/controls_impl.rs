@@ -48,6 +48,9 @@ pub use self::manage_dsa_it::ManageDsaIt;
 mod matched_values;
 pub use self::matched_values::MatchedValues;
 
+mod txn;
+pub use self::txn::TxnSpec;
+
 #[rustfmt::skip]
 lazy_static! {
     static ref CONTROLS: HashMap<&'static str, ControlType> = {

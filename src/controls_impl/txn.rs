@@ -1,14 +1,15 @@
-use crate::controls::{MakeCritical, RawControl};
+use crate::controls::RawControl;
 
 pub const TXN_REQUEST_OID: &str = "1.3.6.1.1.21.2";
 
 /// Transaction Specification control ([RFC 5805](https://tools.ietf.org/html/rfc5805)).
+///
+/// This control only has the request part, and must be marked as critical.
+/// For that reason, it doesn't implement `MakeCritical`.
 #[derive(Clone, Debug, Default)]
 pub struct TxnSpec<'a> {
     pub txn_id: &'a str,
 }
-
-impl<'a> MakeCritical for TxnSpec<'a> {}
 
 impl<'a> From<TxnSpec<'a>> for RawControl {
     fn from(txn: TxnSpec) -> RawControl {

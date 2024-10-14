@@ -11,7 +11,7 @@ mod passmod;
 pub use self::passmod::{PasswordModify, PasswordModifyResp};
 
 mod txn;
-pub use self::txn::{StartTxn, StartTxnResp, EndTxn, EndTxnResp};
+pub use self::txn::{EndTxn, EndTxnResp, StartTxn, StartTxnResp};
 
 /// Generic extended operation.
 ///

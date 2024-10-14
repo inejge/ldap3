@@ -188,6 +188,7 @@ pub mod controls {
     //! # Ok(())
     //! # }
     pub use crate::controls_impl::parse_syncinfo;
+    pub use crate::controls_impl::TxnSpec;
     pub use crate::controls_impl::{
         Assertion, ManageDsaIt, MatchedValues, PagedResults, ProxyAuth, RelaxRules,
     };
@@ -198,7 +199,6 @@ pub mod controls {
     pub use crate::controls_impl::{
         EntryState, RefreshMode, SyncDone, SyncInfo, SyncRequest, SyncState,
     };
-    pub use crate::controls_impl::TxnSpec;
     pub use crate::controls_impl::{PostRead, PostReadResp, PreRead, PreReadResp, ReadEntryResp};
 }
 mod controls_impl;
@@ -217,7 +217,8 @@ pub mod exop {
     //! A response struct must implement the [`ExopParser`](trait.ExopParser.html)
     //! trait.
     pub use crate::exop_impl::{
-        Exop, ExopParser, PasswordModify, PasswordModifyResp, WhoAmI, WhoAmIResp, StartTxn, StartTxnResp, EndTxn, EndTxnResp,
+        EndTxn, EndTxnResp, Exop, ExopParser, PasswordModify, PasswordModifyResp, StartTxn,
+        StartTxnResp, WhoAmI, WhoAmIResp,
     };
 }
 mod filter;

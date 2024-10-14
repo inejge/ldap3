@@ -30,6 +30,7 @@ pub struct StartTxn;
 /// will be provided in the response.
 #[derive(Clone, Debug)]
 pub struct StartTxnResp {
+    /// Transaction identifier.
     pub txn_id: String,
 }
 
@@ -50,6 +51,8 @@ impl ExopParser for StartTxnResp {
     }
 }
 
+/// Transaction End request.
+///
 /// This structure contains elements of a Transaction End request. The precise semantics
 /// of having a particular field present or absent will depend on the server receiving
 /// the request; consult the server documentation. Some rules are prescribed by the RFC

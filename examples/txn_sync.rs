@@ -4,8 +4,6 @@
 // 2. "Transaction" Extended operation.
 //
 // Uses the synchronous client.
-//
-// Notice: only works on Unix (uses Unix domain sockets)
 
 use std::collections::HashSet;
 

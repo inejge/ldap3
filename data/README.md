@@ -7,15 +7,18 @@ you should also make sure that `slapadd` and `slapd` are in your `$PATH`.
 
 The scripts were originally tested on CentOS 7 and Ubuntu 16.04. Later
 Ubuntu releases should behave the same. Following the lead of its parent,
-RHEL, CentOS 8 no longer includes the OpenLDAP server. There, you can
-use the packages provided by the [LTB project](https://ltb-project.org/download.html),
+RHEL, CentOS 8 no longer includes the OpenLDAP server. After the demise of
+CentOS 8, successors like AlmaLinux and Rocky Linux have incorporated OpenLDAP
+in the additional repositories, but the easiest route is to use the packages
+provided by the [LTB project](https://ltb-project.org/download.html),
 which also has the latest OpenLDAP for Debian and Ubuntu.
+
+CentOS 7 is EOL, as is OpenLDAP 2.4.x. Use at least version 8 of RHEL and its
+derivatives, and OpenLDAP 2.5 or later.
 
 * On Ubuntu, install `slapd` and `ldap-utils`.
 
-* On CentOS 7, install `openldap-servers` and `openldap-clients`.
-
-* On CentOS 8, configure the [LTB yum repository](https://www.ltb-project.org/documentation/openldap-rpm.html)
+* On RHEL/Alma/Rocky, configure the [LTB yum repository](https://www.ltb-project.org/documentation/openldap-rpm.html)
   and install `openldap-ltb`.
 
 * Whatever the distro, install `make`.

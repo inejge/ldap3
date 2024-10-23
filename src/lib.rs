@@ -228,7 +228,7 @@ mod search;
 mod sync;
 mod util;
 
-pub use conn::{LdapConnAsync, LdapConnSettings};
+pub use conn::{LdapConnAsync, LdapConnSettings, StdStream};
 pub use filter::parse as parse_filter;
 pub use ldap::{Ldap, Mod};
 pub use result::{LdapError, LdapResult, SearchResult};

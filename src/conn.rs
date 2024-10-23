@@ -187,6 +187,29 @@ impl AsyncWrite for ConnType {
     }
 }
 
+/// Existing stream from which a connection can be created.
+///
+/// A connection may be created from a previously opened TCP or Unix
+/// stream (the latter only if Unix domain sockets are supported) by
+/// placing an instance of this structure in `LdapConnSettings`.
+///
+/// Since the stdlib streams can't be cloned, and `LdapConnSettings`
+/// derives `Clone`, cloning the enum will produce the `Invalid`
+/// variant. Thus, the settings should not be cloned if they
+/// contain an existing stream.
+pub enum StdStream {
+    Tcp(std::net::TcpStream),
+    #[cfg(unix)]
+    Unix(std::os::unix::net::UnixStream),
+    Invalid,
+}
+
+impl Clone for StdStream {
+    fn clone(&self) -> StdStream {
+        StdStream::Invalid
+    }
+}
+
 /// Additional settings for an LDAP connection.
 ///
 /// The structure is opaque for better extensibility. An instance with
@@ -204,6 +227,7 @@ pub struct LdapConnSettings {
     starttls: bool,
     #[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
     no_tls_verify: bool,
+    std_stream: Option<StdStream>,
 }
 
 impl LdapConnSettings {
@@ -270,6 +294,21 @@ impl LdapConnSettings {
     /// verification. Defaults to `false`.
     pub fn set_no_tls_verify(mut self, no_tls_verify: bool) -> Self {
         self.no_tls_verify = no_tls_verify;
+        self
+    }
+
+    /// Create an LDAP connection using a previously opened standard library
+    /// stream (TCP or Unix, if applicable.) The full URL must still be provided
+    /// in order to select connection details, such as TLS establishment or
+    /// Unix domain socket operation.
+    ///
+    /// For Unix streams, the URL can be __ldapi:///__, since the path won't
+    /// be used.
+    ///
+    /// If the provided stream doesn't match the URL (e.g., a Unix stream is
+    /// given with the __ldap__ or __ldaps__ URL), an error will be returned.
+    pub fn set_std_stream(mut self, stream: StdStream) -> Self {
+        self.std_stream = Some(stream);
         self
     }
 }
@@ -397,16 +436,27 @@ impl LdapConnAsync {
     }
 
     #[cfg(unix)]
-    async fn new_unix(url: &Url, _settings: LdapConnSettings) -> Result<(Self, Ldap)> {
-        let path = url.host_str().unwrap_or("");
-        if path.is_empty() {
-            return Err(LdapError::EmptyUnixPath);
-        }
-        if path.contains(':') {
-            return Err(LdapError::PortInUnixPath);
-        }
-        let dec_path = percent_decode(path.as_bytes()).decode_utf8_lossy();
-        let stream = UnixStream::connect(dec_path.as_ref()).await?;
+    async fn new_unix(url: &Url, settings: LdapConnSettings) -> Result<(Self, Ldap)> {
+        let stream = match settings.std_stream {
+            None => {
+                let path = url.host_str().unwrap_or("");
+                if path.is_empty() {
+                    return Err(LdapError::EmptyUnixPath);
+                }
+                if path.contains(':') {
+                    return Err(LdapError::PortInUnixPath);
+                }
+                let dec_path = percent_decode(path.as_bytes()).decode_utf8_lossy();
+                UnixStream::connect(dec_path.as_ref()).await?
+            }
+            Some(StdStream::Unix(stream)) => {
+                stream.set_nonblocking(true)?;
+                UnixStream::from_std(stream)?
+            }
+            Some(StdStream::Tcp(_)) | Some(StdStream::Invalid) => {
+                return Err(LdapError::MismatchedStreamType)
+            }
+        };
         Ok(Self::conn_pair(ConnType::Unix(stream)))
     }
 
@@ -442,7 +492,18 @@ impl LdapConnAsync {
             Some(h) if !h.is_empty() => ("localhost", format!("localhost:{}", port)),
             _ => panic!("unexpected None from url.host_str()"),
         };
-        let stream = TcpStream::connect(host_port.as_str()).await?;
+        let stream = match settings.std_stream {
+            None => TcpStream::connect(host_port.as_str()).await?,
+            Some(StdStream::Tcp(_)) => {
+                let stream = match settings.std_stream.take().expect("StdStream") {
+                    StdStream::Tcp(stream) => stream,
+                    _ => panic!("non-tcp stream in enum"),
+                };
+                stream.set_nonblocking(true)?;
+                TcpStream::from_std(stream)?
+            }
+            Some(_) => return Err(LdapError::MismatchedStreamType),
+        };
         let (mut conn, mut ldap) = Self::conn_pair(ConnType::Tcp(stream));
         match scheme {
             "ldap" => (),

@@ -42,6 +42,10 @@ pub enum LdapError {
     #[error("the port must be empty in the ldapi scheme")]
     PortInUnixPath,
 
+    /// The existing stream in `LdapConnectionSettings` doesn't match the URL.
+    #[error("the stream type in LdapConnSettings does not match the URL")]
+    MismatchedStreamType,
+
     /// Encapsulated I/O error.
     #[error("I/O error: {source}")]
     Io {

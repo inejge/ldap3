@@ -1,8 +1,5 @@
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::net::TcpStream;
-#[cfg(unix)]
-use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
 use crate::adapters::IntoAdapterVec;
@@ -63,53 +60,6 @@ impl LdapConn {
             .build()?;
         let ldap = rt.block_on(async move {
             let (conn, ldap) = match LdapConnAsync::from_url_with_settings(settings, url).await {
-                Ok((conn, ldap)) => (conn, ldap),
-                Err(e) => return Err(e),
-            };
-            super::drive!(conn);
-            Ok(ldap)
-        })?;
-        Ok(LdapConn { ldap, rt })
-    }
-
-    /// Create a connection to an LDAP server from existing UnixStream.
-    #[cfg(unix)]
-    pub fn from_unix_stream(stream: UnixStream) -> Result<Self> {
-        let stream = tokio::net::UnixStream::from_std(stream)?;
-        let rt = runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?;
-
-        let ldap = rt.block_on(async move {
-            let (conn, ldap) = LdapConnAsync::from_unix_stream(stream);
-            super::drive!(conn);
-            ldap
-        });
-        Ok(LdapConn { ldap, rt })
-    }
-
-    /// Create a connection to an LDAP server from existing UnixStream.
-    #[cfg(not(unix))]
-    pub fn from_unix_stream(stream: UnixStream) -> Result<Self> {
-        unimplemented!("no Unix domain sockets on non-Unix platforms");
-    }
-
-    /// Create a connection to an LDAP server from existing TcpStream,
-    /// specified by an already parsed `Url`, using
-    /// `settings` to specify additional parameters.
-    pub fn from_tcp_stream(
-        stream: TcpStream,
-        settings: LdapConnSettings,
-        url: &Url,
-    ) -> Result<Self> {
-        let rt = runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()?;
-
-        let ldap = rt.block_on(async move {
-            stream.set_nonblocking(true)?;
-            let stream = tokio::net::TcpStream::from_std(stream)?;
-            let (conn, ldap) = match LdapConnAsync::from_tcp_stream(stream, settings, url).await {
                 Ok((conn, ldap)) => (conn, ldap),
                 Err(e) => return Err(e),
             };

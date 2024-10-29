@@ -29,7 +29,7 @@ use lazy_static::lazy_static;
 use native_tls::TlsConnector;
 #[cfg(unix)]
 use percent_encoding::percent_decode;
-#[cfg(all(feature = "gssapi", feature = "tls-rustls"))]
+#[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
 use ring::digest::{self, digest, Algorithm};
 #[cfg(feature = "tls-rustls")]
 use rustls::{pki_types::CertificateDer, pki_types::ServerName, ClientConfig, RootCertStore};
@@ -116,14 +116,20 @@ impl rustls::client::danger::ServerCertVerifier for NoCertVerification {
 lazy_static! {
     static ref CACERTS: RootCertStore = {
         let mut store = RootCertStore::empty();
-        for cert in rustls_native_certs::load_native_certs().unwrap_or_else(|_| vec![]) {
+        let cert_res = rustls_native_certs::load_native_certs();
+        let cert_vec = if cert_res.errors.is_empty() {
+            cert_res.certs
+        } else {
+            vec![]
+        };
+        for cert in cert_vec {
             if let Ok(_) = store.add(cert) {}
         }
         store
     };
 }
 
-#[cfg(all(feature = "gssapi", feature = "tls-rustls"))]
+#[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
 lazy_static! {
     static ref ENDPOINT_ALG: HashMap<&'static str, &'static Algorithm> = {
         HashMap::from([
@@ -635,7 +641,7 @@ impl LdapConnAsync {
         use x509_parser::prelude::*;
 
         if let Some(certs) = s.get_ref().1.peer_certificates() {
-            let peer_cert = &certs[0].0;
+            let peer_cert = &certs[0].as_ref();
             let leaf = match X509Certificate::from_der(peer_cert) {
                 Ok(leaf) => leaf,
                 Err(e) => {

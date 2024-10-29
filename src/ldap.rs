@@ -392,7 +392,7 @@ impl Ldap {
 
         use sspi::{
             builders::AcquireCredentialsHandleResult, AuthIdentity, AuthIdentityBuffers,
-            ClientRequestFlags, CredentialUse, DataRepresentation, Ntlm, SecurityBuffer,
+            ClientRequestFlags, CredentialUse, DataRepresentation, Ntlm, OwnedSecurityBuffer,
             SecurityBufferType, SecurityStatus, Sspi, SspiImpl, Username,
         };
 
@@ -401,11 +401,14 @@ impl Ldap {
             acq_creds: &mut AcquireCredentialsHandleResult<Option<AuthIdentityBuffers>>,
             input: &[u8],
         ) -> Result<Vec<u8>> {
-            let mut input = vec![SecurityBuffer::new(
+            let mut input = vec![OwnedSecurityBuffer::new(
                 input.to_vec(),
                 SecurityBufferType::Token,
             )];
-            let mut output = vec![SecurityBuffer::new(Vec::new(), SecurityBufferType::Token)];
+            let mut output = vec![OwnedSecurityBuffer::new(
+                Vec::new(),
+                SecurityBufferType::Token,
+            )];
             let mut builder = ntlm
                 .initialize_security_context()
                 .with_credentials_handle(&mut acq_creds.credentials_handle)

@@ -15,5 +15,5 @@ fn main() -> Result<()> {
         )?
         .equal()?;
     println!("{}equal", if eq { "" } else { "not " });
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

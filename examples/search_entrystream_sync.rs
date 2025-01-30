@@ -33,5 +33,5 @@ fn main() -> Result<()> {
     //let msgid = search.last_id();
     //ldap.abandon(msgid)?;
     let _res = search.result().success()?;
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

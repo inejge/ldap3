@@ -9,5 +9,5 @@ fn main() -> Result<()> {
     let _res = ldap
         .simple_bind("cn=Manager,dc=example,dc=org", "secret")?
         .success()?;
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

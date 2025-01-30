@@ -44,5 +44,5 @@ fn main() -> Result<()> {
         let end_txn = expo.parse::<EndTxnResp>();
         println!("{:?}", end_txn);
     }
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

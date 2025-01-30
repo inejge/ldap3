@@ -26,5 +26,5 @@ fn main() -> Result<()> {
         println!("{:?}", entry);
     }
     let _res = search.result().success()?;
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

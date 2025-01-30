@@ -29,5 +29,5 @@ fn main() -> Result<()> {
     let dn = format!("{},ou=People,dc=example,dc=org", cur_rdn);
     let res = ldap.modifydn(&dn, new_rdn, true, None)?.success()?;
     println!("{:?}", res);
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

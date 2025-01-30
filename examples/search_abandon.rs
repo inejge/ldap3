@@ -23,11 +23,9 @@ async fn main() -> Result<()> {
             vec!["l"],
         )
         .await?;
-    while let Some(_r) = stream.next().await? {
-        break;
-    }
+    let _ = stream.next().await;
     let _res = stream.finish().await;
     let msgid = stream.ldap_handle().last_id();
     ldap.abandon(msgid).await?;
-    Ok(ldap.unbind().await?)
+    ldap.unbind().await
 }

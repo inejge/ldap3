@@ -19,5 +19,5 @@ async fn main() -> Result<()> {
     let (exop, _res) = ldap.extended(WhoAmI).await?.success()?;
     let whoami: WhoAmIResp = exop.parse();
     println!("{}", whoami.authzid);
-    Ok(ldap.unbind().await?)
+    ldap.unbind().await
 }

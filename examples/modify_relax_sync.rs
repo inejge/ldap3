@@ -44,5 +44,5 @@ fn main() -> Result<()> {
         .modify("uid=inejge,ou=People,dc=example,dc=org", mod_vec)?
         .success()?;
     println!("{:?}", res);
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

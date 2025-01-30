@@ -45,5 +45,5 @@ async fn main() -> Result<()> {
     }
     let res = search.finish().await.success()?;
     println!("{:?}", res);
-    Ok(ldap.unbind().await?)
+    ldap.unbind().await
 }

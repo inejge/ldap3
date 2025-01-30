@@ -22,5 +22,5 @@ fn main() -> Result<()> {
     for entry in rs {
         println!("{:?}", SearchEntry::construct(entry));
     }
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

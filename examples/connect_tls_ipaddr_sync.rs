@@ -8,5 +8,5 @@ fn main() -> Result<()> {
         LdapConnSettings::new().set_no_tls_verify(true),
         "ldaps://127.0.0.1:2636",
     )?;
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

@@ -17,5 +17,5 @@ fn main() -> Result<()> {
     let (exop, _res) = ldap.extended(WhoAmI)?.success()?;
     let whoami: WhoAmIResp = exop.parse();
     println!("{}", whoami.authzid);
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

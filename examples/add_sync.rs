@@ -21,5 +21,5 @@ fn main() -> Result<()> {
         )?
         .success()?;
     println!("{:?}", res);
-    Ok(ldap.unbind()?)
+    ldap.unbind()
 }

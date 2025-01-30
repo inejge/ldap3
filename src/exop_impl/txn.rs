@@ -82,7 +82,7 @@ pub struct EndTxnResp {
     pub upds_ctrls: Option<Vec<(i32, Vec<Control>)>>,
 }
 
-impl<'a> From<EndTxn<'a>> for Exop {
+impl From<EndTxn<'_>> for Exop {
     fn from(et: EndTxn) -> Exop {
         let mut et_vec = vec![];
         if !et.commit {
@@ -124,7 +124,7 @@ impl ExopParser for EndTxnResp {
 
         let mut msg_id = None;
         let mut upds_ctrls = None;
-        while let Some(tag) = tags.next() {
+        for tag in tags.by_ref() {
             match tag {
                 StructureTag {
                     id,

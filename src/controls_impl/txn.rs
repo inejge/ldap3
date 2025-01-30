@@ -11,7 +11,7 @@ pub struct TxnSpec<'a> {
     pub txn_id: &'a str,
 }
 
-impl<'a> From<TxnSpec<'a>> for RawControl {
+impl From<TxnSpec<'_>> for RawControl {
     fn from(txn: TxnSpec) -> RawControl {
         RawControl {
             ctype: TXN_REQUEST_OID.to_owned(),

@@ -151,7 +151,7 @@ impl Ldap {
         let last_ldap_id = msgmap.0;
         let mut next_ldap_id = last_ldap_id;
         loop {
-            if next_ldap_id == std::i32::MAX {
+            if next_ldap_id == i32::MAX {
                 next_ldap_id = 1;
             } else {
                 next_ldap_id += 1;

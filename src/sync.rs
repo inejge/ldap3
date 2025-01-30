@@ -294,7 +294,7 @@ pub struct EntryStream<'a, 'b, S, A> {
     conn: &'b mut LdapConn,
 }
 
-impl<'a, 'b, S, A> EntryStream<'a, 'b, S, A>
+impl<'a, S, A> EntryStream<'a, '_, S, A>
 where
     S: AsRef<str> + Send + Sync + 'a,
     A: AsRef<[S]> + Send + Sync + 'a,

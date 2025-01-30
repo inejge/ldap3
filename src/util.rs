@@ -148,7 +148,7 @@ pub enum LdapUrlExt<'a> {
     Unknown(Cow<'a, str>),
 }
 
-impl<'a> PartialEq for LdapUrlExt<'a> {
+impl PartialEq for LdapUrlExt<'_> {
     fn eq(&self, other: &Self) -> bool {
         matches!(
             (self, other),
@@ -162,9 +162,9 @@ impl<'a> PartialEq for LdapUrlExt<'a> {
     }
 }
 
-impl<'a> Eq for LdapUrlExt<'a> {}
+impl Eq for LdapUrlExt<'_> {}
 
-impl<'a> Hash for LdapUrlExt<'a> {
+impl Hash for LdapUrlExt<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             LdapUrlExt::Bindname(_) => "Bindname".hash(state),

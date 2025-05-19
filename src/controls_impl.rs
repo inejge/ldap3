@@ -1,10 +1,9 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use lber::structure::{StructureTag, PL};
 use lber::structures::{ASNTag, Boolean, OctetString, Sequence, Tag};
 use lber::universal::Types;
-
-use lazy_static::lazy_static;
 
 /// Recognized control types.
 ///
@@ -51,20 +50,17 @@ pub use self::matched_values::MatchedValues;
 mod txn;
 pub use self::txn::TxnSpec;
 
-#[rustfmt::skip]
-lazy_static! {
-    static ref CONTROLS: HashMap<&'static str, ControlType> = {
-        let mut map = HashMap::new();
-        map.insert(self::paged_results::PAGED_RESULTS_OID, ControlType::PagedResults);
-        map.insert(self::read_entry::POST_READ_OID, ControlType::PostReadResp);
-        map.insert(self::read_entry::PRE_READ_OID, ControlType::PreReadResp);
-        map.insert(self::content_sync::SYNC_DONE_OID, ControlType::SyncDone);
-        map.insert(self::content_sync::SYNC_STATE_OID, ControlType::SyncState);
-        map.insert(self::manage_dsa_it::MANAGE_DSA_IT_OID, ControlType::ManageDsaIt);
-        map.insert(self::matched_values::MATCHED_VALUES_OID, ControlType::MatchedValues);
-        map
-    };
-}
+static CONTROLS: LazyLock<HashMap<&'static str, ControlType>> = LazyLock::new(|| {
+    let mut map = HashMap::new();
+    map.insert(self::paged_results::PAGED_RESULTS_OID, ControlType::PagedResults);
+    map.insert(self::read_entry::POST_READ_OID, ControlType::PostReadResp);
+    map.insert(self::read_entry::PRE_READ_OID, ControlType::PreReadResp);
+    map.insert(self::content_sync::SYNC_DONE_OID, ControlType::SyncDone);
+    map.insert(self::content_sync::SYNC_STATE_OID, ControlType::SyncState);
+    map.insert(self::manage_dsa_it::MANAGE_DSA_IT_OID, ControlType::ManageDsaIt);
+    map.insert(self::matched_values::MATCHED_VALUES_OID, ControlType::MatchedValues);
+    map
+});
 
 /// Conversion trait for single control instances.
 ///

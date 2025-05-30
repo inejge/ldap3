@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::hash::Hash;
-#[cfg(feature = "gssapi")]
+#[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -21,6 +21,8 @@ use lber::structures::{Boolean, Enumerated, Integer, Null, OctetString, Sequence
 
 #[cfg(feature = "gssapi")]
 use cross_krb5::{ClientCtx, InitiateFlags, K5Ctx, Step};
+#[cfg(feature = "gssapi_unix")]
+use libgssapi::{context::{ClientCtx, CtxFlags, SecurityContext}, credential::Cred, name::Name, oid::Oid};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 
@@ -79,11 +81,11 @@ pub struct Ldap {
     pub(crate) id_scrub_tx: mpsc::UnboundedSender<RequestId>,
     pub(crate) misc_tx: mpsc::UnboundedSender<MiscSender>,
     pub(crate) last_id: RequestId,
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     pub(crate) sasl_param: Arc<RwLock<(bool, u32)>>, // sasl_wrap, sasl_max_send
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     pub(crate) client_ctx: Arc<Mutex<Option<ClientCtx>>>,
-    #[cfg(any(feature = "gssapi", feature = "ntlm"))]
+    #[cfg(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"))]
     pub(crate) tls_endpoint_token: Arc<Option<Vec<u8>>>,
     pub(crate) has_tls: bool,
     pub timeout: Option<Duration>,
@@ -98,11 +100,11 @@ impl Clone for Ldap {
             tx: self.tx.clone(),
             id_scrub_tx: self.id_scrub_tx.clone(),
             misc_tx: self.misc_tx.clone(),
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             sasl_param: self.sasl_param.clone(),
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             client_ctx: self.client_ctx.clone(),
-            #[cfg(any(feature = "gssapi", feature = "ntlm"))]
+            #[cfg(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"))]
             tls_endpoint_token: self.tls_endpoint_token.clone(),
             has_tls: self.has_tls,
             last_id: 0,
@@ -372,6 +374,111 @@ impl Ldap {
             }
             let client_opt = &mut *self.client_ctx.lock().unwrap();
             client_opt.replace(client_ctx);
+        }
+        Ok(res)
+    }
+
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "gssapi_unix")))]
+    #[cfg(feature = "gssapi_unix")]
+    /// Do an SASL GSSAPI bind on the connection, using the default Kerberos credentials
+    /// for the current user and `server_fqdn` for the LDAP server SPN. If the connection
+    /// is in the clear, request and install the Kerberos confidentiality protection
+    /// (i.e., encryption) security layer. If the connection is already encrypted with TLS,
+    /// use Kerberos just for authentication and proceed with no security layer.
+    ///
+    /// On TLS connections, the __tls-server-end-point__ channel binding token will be
+    /// supplied to the server if possible. This enables binding to Active Directory servers
+    /// with the strictest LDAP channel binding enforcement policy.
+    ///
+    /// The underlying GSSAPI libraries issue blocking filesystem and network calls when
+    /// querying the ticket cache or the Kerberos servers. Therefore, the method should not
+    /// be used in heavily concurrent contexts with frequent Bind operations.
+    pub async fn sasl_gssapi_bind(&mut self,
+                                  cred: Option<Cred>,
+                                  server_name: Name,
+                                  ctx_flags: CtxFlags,
+                                  mech: Option<&'static Oid>) -> Result<LdapResult> {
+        const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
+        const GSSAUTH_P_NONE: u8 = 1;
+        const GSSAUTH_P_PRIVACY: u8 = 4;
+
+        let mut ctx = ClientCtx::new(cred, server_name, ctx_flags, mech);
+        let mut cbt = if self.has_tls {
+            let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
+            if let Some(ref token) = self.tls_endpoint_token.as_ref() {
+                cbt.extend(token);
+                Some(cbt)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut server_token = None;
+        loop {
+            server_token = match ctx.step(server_token.as_deref(), cbt.as_deref())
+                .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))? {
+                None => break,
+                Some(tok) => {
+                    let req = sasl_bind_req("GSSAPI", Some(tok.as_ref()));
+                    let ans = self.op_call(LdapOp::Single, req).await?;
+                    if ans.0.rc != LDAP_RESULT_SASL_BIND_IN_PROGRESS {
+                        return Ok(ans.0);
+                    }
+                    ans.2.0
+                }
+            };
+            cbt = None;
+        }
+        let tok = ctx.step(None, None)
+            .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
+
+        let req = sasl_bind_req("GSSAPI", tok.as_deref());
+        let ans = self.op_call(LdapOp::Single, req).await?;
+        let token = match (ans.2).0 {
+            Some(token) => token,
+            _ => return Err(LdapError::NoGssapiToken),
+        };
+        let mut buf = ctx
+            .unwrap(&token)
+            .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
+
+        let needed_layer = if self.has_tls {
+            GSSAUTH_P_NONE
+        } else {
+            GSSAUTH_P_PRIVACY
+        };
+        if buf[0] | needed_layer == 0 {
+            return Err(LdapError::GssapiOperationError(format!(
+                "no appropriate security layer offered: needed {}, mask {}",
+                needed_layer, buf[0]
+            )));
+        }
+        // FIXME: the max_size constant is taken from OpenLDAP GSSAPI code as a fallback
+        // value for broken GSSAPI libraries. It's meant to serve as a safe value until
+        // gss_wrap_size_limit() equivalent is available in cross-krb5.
+        let recv_max_size = (0x9FFFB8u32 | (needed_layer as u32) << 24).to_be_bytes();
+        let size_msg = ctx
+            .wrap(true, &recv_max_size)
+            .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
+        let req = sasl_bind_req("GSSAPI", Some(&size_msg));
+        let res = self.op_call(LdapOp::Single, req).await?.0;
+        if res.rc == 0 {
+            if needed_layer == GSSAUTH_P_PRIVACY {
+                buf[0] = 0;
+                let send_max_size =
+                    u32::from_be_bytes((&buf[..]).try_into().expect("send max size"));
+                if send_max_size == 0 {
+                    warn!("got zero send_max_size, will be treated as unlimited");
+                }
+                let mut sasl_param = self.sasl_param.write().expect("sasl param");
+                sasl_param.0 = true;
+                sasl_param.1 = send_max_size;
+            }
+            let client_opt = &mut *self.client_ctx.lock().unwrap();
+            client_opt.replace(ctx);
         }
         Ok(res)
     }

@@ -158,12 +158,12 @@ pub enum LdapError {
     #[error("unrecognized critical LDAP URL extension: {0}")]
     UnrecognizedCriticalExtension(String),
 
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     /// GSSAPI operation error.
     #[error("GSSAPI operation error: {0}")]
     GssapiOperationError(String),
 
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     /// No token received from GSSAPI acceptor.
     #[error("no token received from acceptor")]
     NoGssapiToken,

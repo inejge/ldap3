@@ -1,7 +1,7 @@
 use std::io;
-#[cfg(feature = "gssapi")]
+#[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
 use std::sync::RwLock;
-#[cfg(feature = "gssapi")]
+#[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
 use std::sync::{Arc, Mutex};
 
 use crate::controls::{Control, RawControl};
@@ -19,15 +19,17 @@ use lber::write;
 use bytes::{Buf, BytesMut};
 #[cfg(feature = "gssapi")]
 use cross_krb5::{ClientCtx, K5Ctx};
+#[cfg(feature = "gssapi_unix")]
+use libgssapi::{context::{ClientCtx, SecurityContext}, util::{GssIov, GssIovType}};
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::codec::{Decoder, Encoder};
 
 pub(crate) struct LdapCodec {
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     pub(crate) has_decoded_data: bool,
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     pub(crate) sasl_param: Arc<RwLock<(bool, u32)>>, // sasl_wrap, sasl_max_send
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     pub(crate) client_ctx: Arc<Mutex<Option<ClientCtx>>>,
 }
 
@@ -119,12 +121,12 @@ impl Decoder for LdapCodec {
     type Item = (RequestId, (Tag, Vec<Control>));
     type Error = io::Error;
 
-    #[cfg(not(feature = "gssapi"))]
+    #[cfg(not(any(feature = "gssapi", feature = "gssapi_unix")))]
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         decode_inner(buf)
     }
 
-    #[cfg(feature = "gssapi")]
+    #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         const U32_SIZE: usize = std::mem::size_of::<u32>();
 
@@ -149,9 +151,30 @@ impl Decoder for LdapCodec {
         buf.advance(U32_SIZE);
         let client_opt = &mut *self.client_ctx.lock().expect("client ctx lock");
         let client_ctx = client_opt.as_mut().expect("client Option mut ref");
+        #[cfg(feature = "gssapi")]
         let mut decoded = client_ctx.unwrap_iov(sasl_len as usize, buf).map_err(|e| {
             io::Error::new(io::ErrorKind::Other, format!("gss_unwrap error: {:#}", e))
         })?;
+        #[cfg(feature = "gssapi_unix")]
+        let mut decoded = {
+            let sasl_len = sasl_len as usize;
+            let (hdr_len, data_len) = {
+                let mut iov = [
+                    GssIov::new(GssIovType::Stream, &mut buf[0..sasl_len]),
+                    GssIov::new(GssIovType::Data, &mut []),
+                ];
+                client_ctx.unwrap_iov(&mut iov[..]).map_err(|e| {
+                    io::Error::new(io::ErrorKind::Other, format!("gss_unwrap error: {:#}", e))
+                })?;
+                let hdr_len = iov[0].header_length(&iov[1]).unwrap();
+                let data_len = iov[1].len();
+                (hdr_len, data_len)
+            };
+            buf.advance(hdr_len);
+            let data = buf.split_to(data_len);
+            buf.advance(sasl_len - hdr_len - data_len);
+            data
+        };
         let res = decode_inner(&mut decoded);
         if res.is_ok() && !decoded.is_empty() && buf.is_empty() {
             buf.extend(decoded);
@@ -161,7 +184,7 @@ impl Decoder for LdapCodec {
     }
 }
 
-#[cfg(not(feature = "gssapi"))]
+#[cfg(not(any(feature = "gssapi", feature = "gssapi_unix")))]
 #[inline]
 fn maybe_wrap(
     _codec: &mut LdapCodec,
@@ -172,7 +195,7 @@ fn maybe_wrap(
     Ok(())
 }
 
-#[cfg(feature = "gssapi")]
+#[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
 fn maybe_wrap(
     codec: &mut LdapCodec,
     outstruct: StructureTag,

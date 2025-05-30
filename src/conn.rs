@@ -4,7 +4,7 @@ use std::net::IpAddr;
 use std::pin::Pin;
 #[cfg(feature = "tls-rustls")]
 use std::str::FromStr;
-#[cfg(feature = "gssapi")]
+#[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
@@ -129,7 +129,7 @@ lazy_static! {
     };
 }
 
-#[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
+#[cfg(all(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"), feature = "tls-rustls"))]
 lazy_static! {
     static ref ENDPOINT_ALG: HashMap<&'static str, &'static Algorithm> = {
         HashMap::from([
@@ -536,7 +536,7 @@ impl LdapConnAsync {
                 } else {
                     panic!("underlying stream not TCP");
                 };
-                #[cfg(any(feature = "gssapi", feature = "ntlm"))]
+                #[cfg(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"))]
                 {
                     ldap.tls_endpoint_token =
                         Arc::new(LdapConnAsync::get_tls_endpoint_token(&tls_stream));
@@ -620,7 +620,7 @@ impl LdapConnAsync {
         builder.build().expect("connector")
     }
 
-    #[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-native"))]
+    #[cfg(all(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"), feature = "tls-native"))]
     fn get_tls_endpoint_token(s: &TlsStream<TcpStream>) -> Option<Vec<u8>> {
         match s.get_ref().tls_server_end_point() {
             Ok(ep) => {
@@ -636,7 +636,7 @@ impl LdapConnAsync {
         }
     }
 
-    #[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
+    #[cfg(all(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"), feature = "tls-rustls"))]
     fn get_tls_endpoint_token(s: &TlsStream<TcpStream>) -> Option<Vec<u8>> {
         use x509_parser::prelude::*;
 
@@ -663,17 +663,17 @@ impl LdapConnAsync {
     }
 
     fn conn_pair(ctype: ConnType) -> (Self, Ldap) {
-        #[cfg(feature = "gssapi")]
+        #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
         let client_ctx = Arc::new(Mutex::new(None));
         let codec = LdapCodec {
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             has_decoded_data: false,
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             sasl_param: Arc::new(RwLock::new((false, 0))),
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             client_ctx: client_ctx.clone(),
         };
-        #[cfg(feature = "gssapi")]
+        #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
         let sasl_param = codec.sasl_param.clone();
         let (tx, rx) = mpsc::unbounded_channel();
         let (id_scrub_tx, id_scrub_rx) = mpsc::unbounded_channel();
@@ -692,11 +692,11 @@ impl LdapConnAsync {
             tx,
             id_scrub_tx,
             misc_tx,
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             sasl_param,
-            #[cfg(feature = "gssapi")]
+            #[cfg(any(feature = "gssapi", feature = "gssapi_unix"))]
             client_ctx,
-            #[cfg(any(feature = "gssapi", feature = "ntlm"))]
+            #[cfg(any(feature = "gssapi", feature = "ntlm", feature = "gssapi_unix"))]
             tls_endpoint_token: Arc::new(None),
             has_tls: false,
             last_id: 0,

@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::time::Duration;
-
+#[cfg(feature = "gssapi_unix")]
+use libgssapi::{credential::Cred, context::CtxFlags, name::Name, oid::Oid};
 use crate::adapters::IntoAdapterVec;
 use crate::conn::{LdapConnAsync, LdapConnSettings};
 use crate::controls_impl::IntoRawControlVec;
@@ -108,6 +109,15 @@ impl LdapConn {
         let rt = &mut self.rt;
         let ldap = &mut self.ldap;
         rt.block_on(async move { ldap.sasl_gssapi_bind(server_fqdn).await })
+    }
+
+    #[cfg_attr(docsrs, doc(cfg(feature = "gssapi_unix")))]
+    #[cfg(feature = "gssapi_unix")]
+    /// See [`Ldap::sasl_gssapi_bind()`](struct.Ldap.html#method.sasl_gssapi_bind).
+    pub fn sasl_gssapi_bind(&mut self, cred: Option<Cred>, server_name: Name, ctx_flags: CtxFlags, mech: Option<&'static Oid>) -> Result<LdapResult> {
+        let rt = &mut self.rt;
+        let ldap = &mut self.ldap;
+        rt.block_on(async move { ldap.sasl_gssapi_bind(cred, server_name, ctx_flags, mech).await })
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "ntlm")))]

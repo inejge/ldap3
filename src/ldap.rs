@@ -381,8 +381,8 @@ impl Ldap {
 
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi_unix")))]
     #[cfg(feature = "gssapi_unix")]
-    /// Do an SASL GSSAPI bind on the connection, using the default Kerberos credentials
-    /// for the current user and `server_fqdn` for the LDAP server SPN. If the connection
+    /// Do an SASL GSSAPI bind on the connection, using the passed Kerberos credentials
+    /// for the user to bind to and `server_name` for the LDAP server `Name`. If the connection
     /// is in the clear, request and install the Kerberos confidentiality protection
     /// (i.e., encryption) security layer. If the connection is already encrypted with TLS,
     /// use Kerberos just for authentication and proceed with no security layer.

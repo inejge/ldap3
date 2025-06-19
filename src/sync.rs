@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 use std::hash::Hash;
 use std::time::Duration;
-
+#[cfg(feature = "gssapi")]
+use cross_krb5::Cred;
 use crate::adapters::IntoAdapterVec;
 use crate::conn::{LdapConnAsync, LdapConnSettings};
 use crate::controls_impl::IntoRawControlVec;
@@ -110,6 +111,15 @@ impl LdapConn {
         rt.block_on(async move { ldap.sasl_gssapi_bind(server_fqdn).await })
     }
 
+    #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
+    #[cfg(feature = "gssapi")]
+    /// See [`Ldap::sasl_gssapi_bind()`](struct.Ldap.html#method.sasl_gssapi_bind).
+    pub fn sasl_gssapi_cred_bind(&mut self, cred: Cred, server_fqdn: &str) -> Result<LdapResult> {
+        let rt = &mut self.rt;
+        let ldap = &mut self.ldap;
+        rt.block_on(async move { ldap.sasl_gssapi_cred_bind(cred, server_fqdn).await })
+    }
+    
     #[cfg_attr(docsrs, doc(cfg(feature = "ntlm")))]
     #[cfg(feature = "ntlm")]
     /// See [`Ldap::sasl_ntlm_bind()`](struct.Ldap.html#method.sasl_ntlm_bind).

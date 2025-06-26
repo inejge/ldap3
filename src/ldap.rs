@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::ops::Deref;
 #[cfg(feature = "gssapi")]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
@@ -21,7 +20,7 @@ use lber::common::TagClass;
 use lber::structures::{Boolean, Enumerated, Integer, Null, OctetString, Sequence, Set, Tag};
 
 #[cfg(feature = "gssapi")]
-use cross_krb5::{Cred, PendingClientCtx, ClientCtx, InitiateFlags, K5Ctx, Step};
+use cross_krb5::{ClientCtx, Cred, InitiateFlags, K5Ctx, Step};
 use tokio::sync::{mpsc, oneshot};
 use tokio::time;
 
@@ -144,6 +143,12 @@ fn sasl_bind_req(mech: &str, creds: Option<&[u8]>) -> Tag {
             }),
         ],
     })
+}
+
+#[cfg(feature = "gssapi")]
+enum GssapiCred {
+    Default,
+    Supplied(Cred),
 }
 
 impl Ldap {
@@ -269,12 +274,6 @@ impl Ldap {
         Ok(self.op_call(LdapOp::Single, req).await?.0)
     }
 
-    #[cfg(feature = "gssapi")]
-    const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
-    #[cfg(feature = "gssapi")]
-    const GSSAUTH_P_NONE: u8 = 1;
-    #[cfg(feature = "gssapi")]
-    const GSSAUTH_P_PRIVACY: u8 = 4;
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
     #[cfg(feature = "gssapi")]
     /// Do an SASL GSSAPI bind on the connection, using the default Kerberos credentials
@@ -291,44 +290,31 @@ impl Ldap {
     /// querying the ticket cache or the Kerberos servers. Therefore, the method should not
     /// be used in heavily concurrent contexts with frequent Bind operations.
     pub async fn sasl_gssapi_bind(&mut self, server_fqdn: &str) -> Result<LdapResult> {
-
-        let mut spn = String::from("ldap/");
-        spn.push_str(server_fqdn);
-        let cti = if self.has_tls {
-            let cbt = {
-                let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
-                if let Some(ref token) = self.tls_endpoint_token.as_ref() {
-                    cbt.extend(token);
-                    Some(cbt)
-                } else {
-                    None
-                }
-            };
-            ClientCtx::new(InitiateFlags::empty(), None, &spn, cbt.as_deref())
-        } else {
-            ClientCtx::new(InitiateFlags::empty(), None, &spn, None)
-        };
-        let (client_ctx, token) =
-            cti.map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
-        self.gssapi_bind(client_ctx, token).await
+        self.gssapi_bind(server_fqdn, GssapiCred::Default).await
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
     #[cfg(feature = "gssapi")]
-    /// Do an SASL GSSAPI bind on the connection, using GSSAPI credentials and `server_fqdn` 
-    /// for the LDAP server SPN. If the connection is in the clear, request and install the 
-    /// Kerberos confidentiality protection (i.e., encryption) security layer. If the connection 
-    /// is already encrypted with TLS, use Kerberos just for authentication and proceed with 
-    /// no security layer.
-    ///
-    /// On TLS connections, the __tls-server-end-point__ channel binding token will be
-    /// supplied to the server if possible. This enables binding to Active Directory servers
-    /// with the strictest LDAP channel binding enforcement policy.
-    ///
-    /// The underlying GSSAPI libraries issue blocking filesystem and network calls when
-    /// querying the ticket cache or the Kerberos servers. Therefore, the method should not
-    /// be used in heavily concurrent contexts with frequent Bind operations.
-    pub async fn sasl_gssapi_cred_bind(&mut self, cred: Cred, server_fqdn: &str) -> Result<LdapResult> {
+    /// Do an SASL GSSAPI bind on the connection, using the supplied GSSAPI credentials and
+    /// `server_fqdn` for the LDAP server SPN. Aside from using the supplied credentials, this
+    /// method behaves identically as [`gssapi_bind()`](#method.gssapi_bind) (q.v.)
+    pub async fn sasl_gssapi_cred_bind(
+        &mut self,
+        cred: Cred,
+        server_fqdn: &str,
+    ) -> Result<LdapResult> {
+        self.gssapi_bind(server_fqdn, GssapiCred::Supplied(cred))
+            .await
+    }
+
+    #[cfg(feature = "gssapi")]
+    async fn gssapi_bind(&mut self, server_fqdn: &str, cred: GssapiCred) -> Result<LdapResult> {
+        const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
+        const GSSAUTH_P_NONE: u8 = 1;
+        const GSSAUTH_P_PRIVACY: u8 = 4;
+
+        use either::Either;
+
         let mut spn = String::from("ldap/");
         spn.push_str(server_fqdn);
         let cti = if self.has_tls {
@@ -341,24 +327,42 @@ impl Ldap {
                     None
                 }
             };
-            ClientCtx::new_with_cred(cred, &spn, cbt.as_deref())
+            match cred {
+                GssapiCred::Default => Either::Left(ClientCtx::new(
+                    InitiateFlags::empty(),
+                    None,
+                    &spn,
+                    cbt.as_deref(),
+                )),
+                GssapiCred::Supplied(cred) => {
+                    Either::Right(ClientCtx::new_with_cred(cred, &spn, cbt.as_deref()))
+                }
+            }
         } else {
-            ClientCtx::new_with_cred(cred, &spn, None)
+            match cred {
+                GssapiCred::Default => {
+                    Either::Left(ClientCtx::new(InitiateFlags::empty(), None, &spn, None))
+                }
+                GssapiCred::Supplied(cred) => {
+                    Either::Right(ClientCtx::new_with_cred(cred, &spn, None))
+                }
+            }
         };
-        let (client_ctx, token) =
-            cti.map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
-        self.gssapi_bind(client_ctx, token).await
-    }
-
-    #[cfg(feature = "gssapi")]
-    async fn gssapi_bind(
-        &mut self, 
-        client_ctx: PendingClientCtx, 
-        token: impl Deref<Target=[u8]>
-    ) -> Result<LdapResult> {
-        let req = sasl_bind_req("GSSAPI", Some(&token));
+        let (client_ctx, token) = match cti {
+            Either::Left(cti) => cti
+                .map(|(c, t)| (c, Either::Left(t)))
+                .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?,
+            Either::Right(cti) => cti
+                .map(|(c, t)| (c, Either::Right(t)))
+                .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?,
+        };
+        let token = match token {
+            Either::Left(ref t) => t.as_ref(),
+            Either::Right(ref t) => t.as_ref(),
+        };
+        let req = sasl_bind_req("GSSAPI", Some(token));
         let ans = self.op_call(LdapOp::Single, req).await?;
-        if (ans.0).rc != Self::LDAP_RESULT_SASL_BIND_IN_PROGRESS {
+        if (ans.0).rc != LDAP_RESULT_SASL_BIND_IN_PROGRESS {
             return Ok(ans.0);
         }
         let token = match (ans.2).0 {
@@ -378,7 +382,7 @@ impl Ldap {
         };
         let req = sasl_bind_req("GSSAPI", None);
         let ans = self.op_call(LdapOp::Single, req).await?;
-        if (ans.0).rc != Self::LDAP_RESULT_SASL_BIND_IN_PROGRESS {
+        if (ans.0).rc != LDAP_RESULT_SASL_BIND_IN_PROGRESS {
             return Ok(ans.0);
         }
         let token = match (ans.2).0 {
@@ -389,9 +393,9 @@ impl Ldap {
             .unwrap(&token)
             .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
         let needed_layer = if self.has_tls {
-            Self::GSSAUTH_P_NONE
+            GSSAUTH_P_NONE
         } else {
-            Self::GSSAUTH_P_PRIVACY
+            GSSAUTH_P_PRIVACY
         };
         if buf[0] | needed_layer == 0 {
             return Err(LdapError::GssapiOperationError(format!(
@@ -409,7 +413,7 @@ impl Ldap {
         let req = sasl_bind_req("GSSAPI", Some(&size_msg));
         let res = self.op_call(LdapOp::Single, req).await?.0;
         if res.rc == 0 {
-            if needed_layer == Self::GSSAUTH_P_PRIVACY {
+            if needed_layer == GSSAUTH_P_PRIVACY {
                 buf[0] = 0;
                 let send_max_size =
                     u32::from_be_bytes((&buf[..]).try_into().expect("send max size"));

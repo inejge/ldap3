@@ -1,8 +1,3 @@
-use std::collections::HashSet;
-use std::hash::Hash;
-use std::time::Duration;
-#[cfg(feature = "gssapi")]
-use cross_krb5::Cred;
 use crate::adapters::IntoAdapterVec;
 use crate::conn::{LdapConnAsync, LdapConnSettings};
 use crate::controls_impl::IntoRawControlVec;
@@ -11,6 +6,11 @@ use crate::ldap::{Ldap, Mod};
 use crate::result::{CompareResult, ExopResult, LdapResult, Result, SearchResult};
 use crate::search::{ResultEntry, Scope, SearchOptions, SearchStream};
 use crate::RequestId;
+#[cfg(feature = "gssapi")]
+use cross_krb5::Cred;
+use std::collections::HashSet;
+use std::hash::Hash;
+use std::time::Duration;
 
 use tokio::runtime::{self, Runtime};
 use url::Url;
@@ -119,7 +119,7 @@ impl LdapConn {
         let ldap = &mut self.ldap;
         rt.block_on(async move { ldap.sasl_gssapi_cred_bind(cred, server_fqdn).await })
     }
-    
+
     #[cfg_attr(docsrs, doc(cfg(feature = "ntlm")))]
     #[cfg(feature = "ntlm")]
     /// See [`Ldap::sasl_ntlm_bind()`](struct.Ldap.html#method.sasl_ntlm_bind).

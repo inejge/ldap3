@@ -494,8 +494,8 @@ impl LdapConnAsync {
             port = url_port;
         }
         let (_hostname, host_port) = match url.host_str() {
-            Some(h) if !h.is_empty() => (h, format!("{}:{}", h, port)),
-            Some(h) if !h.is_empty() => ("localhost", format!("localhost:{}", port)),
+            Some("") => ("localhost", format!("localhost:{}", port)),
+            Some(h) => (h, format!("{}:{}", h, port)),
             _ => panic!("unexpected None from url.host_str()"),
         };
         let stream = match settings.std_stream {

@@ -438,16 +438,15 @@ impl Ldap {
     /// anyway.) To specify the domain, incorporate it into the username, using the
     /// `DOMAIN\user` or `user@DOMAIN` format.
     ///
-    /// __Caveat:__ the connection is not encrypted by NTLM "sealing". For encryption, use
-    /// TLS. Additionally, no channel binding token is sent on a TLS connection, so some
-    /// strictly configured servers may refuse to work. If possible, use Kerberos/GSSAPI.
+    /// __Caveat:__ the connection cannot encrypted by NTLM "sealing". For encryption, use
+    /// TLS. A channel binding token is automatically sent on a TLS connection, if possible.
     pub async fn sasl_ntlm_bind(&mut self, username: &str, password: &str) -> Result<LdapResult> {
         const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
 
         use sspi::{
             builders::AcquireCredentialsHandleResult, AuthIdentity, AuthIdentityBuffers,
-            ClientRequestFlags, CredentialUse, DataRepresentation, Ntlm, OwnedSecurityBuffer,
-            SecurityBufferType, SecurityStatus, Sspi, SspiImpl, Username,
+            BufferType, ClientRequestFlags, CredentialUse, DataRepresentation, Ntlm,
+            SecurityBuffer, SecurityStatus, Sspi, SspiImpl, Username,
         };
 
         fn step(
@@ -455,14 +454,8 @@ impl Ldap {
             acq_creds: &mut AcquireCredentialsHandleResult<Option<AuthIdentityBuffers>>,
             input: &[u8],
         ) -> Result<Vec<u8>> {
-            let mut input = vec![OwnedSecurityBuffer::new(
-                input.to_vec(),
-                SecurityBufferType::Token,
-            )];
-            let mut output = vec![OwnedSecurityBuffer::new(
-                Vec::new(),
-                SecurityBufferType::Token,
-            )];
+            let mut input = vec![SecurityBuffer::new(input.to_vec(), BufferType::Token)];
+            let mut output = vec![SecurityBuffer::new(Vec::new(), BufferType::Token)];
             let mut builder = ntlm
                 .initialize_security_context()
                 .with_credentials_handle(&mut acq_creds.credentials_handle)
@@ -505,8 +498,7 @@ impl Ldap {
             let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
             if let Some(ref token) = self.tls_endpoint_token.as_ref() {
                 cbt.extend(token);
-                // temporary private extension, will see how best to incorporate into sspi-rs
-                // ntlm.set_channel_bindings(&cbt);
+                ntlm.set_channel_bindings(&cbt);
             }
         }
         let req = sasl_bind_req(

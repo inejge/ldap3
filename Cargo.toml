@@ -31,8 +31,8 @@ lazy_static = "1.4.0"
 thiserror = "1.0.65"
 native-tls = { version = "0.2.11", optional = true }
 tokio-native-tls = { version = "0.3.0", optional = true }
-rustls = { version = "0.23.16", optional = true, default-features = false, features = ["ring", "logging", "std", "tls12"] }
-tokio-rustls = { version = "0.26.0", optional = true, default-features = false, features = ["logging", "tls12", "ring"] }
+rustls = { version = "0.23.16", optional = true, default-features = false, features = ["logging", "std", "tls12"] }
+tokio-rustls = { version = "0.26.0", optional = true, default-features = false, features = ["logging", "tls12"] }
 rustls-native-certs = { version = "0.8.0", optional = true }
 x509-parser = { version = "0.16.0", optional = true }
 ring = { version = "0.17.8", optional = true }
@@ -49,9 +49,12 @@ version = "0.4.3"
 default = ["sync", "tls"]
 tls = ["tls-native"]
 tls-native = ["dep:native-tls", "dep:tokio-native-tls", "tokio/rt"]
-tls-rustls = ["dep:rustls", "dep:tokio-rustls", "dep:rustls-native-certs", "dep:x509-parser", "dep:ring", "tokio/rt"]
+tls-rustls = ["dep:rustls", "dep:tokio-rustls", "dep:rustls-native-certs", "dep:x509-parser", "tokio/rt"]
+tls-rustls-ring = ["tls-rustls","rustls/ring","rustls-provider"]
+tls-rustls-aws-lc-rs = ["tls-rustls","rustls/aws_lc_rs","rustls-provider"]
+rustls-provider = []
 sync = ["tokio/rt"]
-gssapi = ["cross-krb5","dep:either"]
+gssapi = ["cross-krb5","dep:ring","dep:either"]
 ntlm = ["sspi","dep:ring"]
 
 [dev-dependencies]

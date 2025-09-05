@@ -2,30 +2,27 @@
 
 A pure-Rust LDAP client library using the Tokio stack.
 
+### Attention!
+
+Building with Rustls requires explicitly selecting a crypto provider. TL;DR is
+to use the "rustls-aws-lc-rs" or "rustls-ring" feature instead of "rustls". See
+the "Compile-time features" section for details.
+
 ### Version notices
 
-The 0.11 branch has had a belated but important dependency
-upgrade: the `nom` parser combinator crate, both in the `lber` support library
-and `ldap3` proper. This should be an implementation detail invisible to the user,
-and the parsers have a battery of tests, but the version was nevertheless bumped up
-out of abundance of caution. There are no functional differences between 0.10.6
-and 0.11.3.
+The 0.12 branch will contain basic NTLM support, remove deprecated functions,
+and update the depnedencies and documentation. The earliest Rust version which
+can be used with NTLM is 1.85.0; without NTLM, 1.80.0 will work. The only
+breaking change is the use of feature flags when building with Rustls.
 
-Starting with 0.10.3, there is cross-platform Kerberos/GSSAPI support if compiled
-with the __gssapi__ feature. This feature enables the use of integrated Windows
-authentication in Active Directory domains. See the description of the feature
-in this README for the details of compile-time requirements.
-
-The 0.11 branch is actively developed. Bug fixes will be ported to 0.10.x. The 0.9
-branch is hence retired.
+The 0.11 branch is now in maintenance mode, and 0.10 is retired. If you're
+using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
 
 ### Documentation
 
 API reference:
 
 - [Version 0.11.x](https://docs.rs/ldap3/0.11.3/ldap3/)
-
-- [Version 0.10.x](https://docs.rs/ldap3/0.10.6/ldap3/)
 
 There is an [LDAP introduction](https://github.com/inejge/ldap3/blob/27a247c8a6e4e2c86f664f4280c4c6499f0e9fe5/LDAP-primer.md)
 for those still getting their bearings in the LDAP world.
@@ -117,10 +114,26 @@ The following features are available at compile time:
   For usage notes and caveats, see the documentation for `Ldap::sasl_gssapi_bind()` in
   the API reference.
 
+* __ntlm__ (disabled by default): NTLM authentication support. Username and password must
+  be provided, and the password must be in cleartext. It works on TLS connections, or clear
+  connections with no signing or sealing. With TLS, a channel binding token is sent to the
+  server if possible.
+
 * __tls__ (enabled by default): TLS support, backed by the `native-tls` crate, which uses
   a platform-specific TLS backend. This is an alias for __tls-native__.
 
-* __tls-rustls__ (disabled by default): TLS support, backed by the Rustls library.
+* __tls-rustls-...__ (disabled by default): TLS support, backed by the Rustls library. The
+  bare __tls-rustls__ flag, used previously for this purpose, won't work by itself; one
+  must choose the crypto provider for Rustls. There are two predefined flags for this
+  purpose, __tls-rustls-aws-lc-rs__ and __tls-rustls-ring__. If another provider is
+  needed, it can be chosen by activating the corresponding feature in Rustls and setting
+  the flags __tls-rustls__ and __rustls-provider__. For example the AWS FIPS provider can
+  be chosen with:
+
+  ... `--features tls-rustls,rustls/fips,rustls-provider`
+
+  Not selecting a provider, or selecting one without specifying __rustls-provider__, will
+  produce a compile-time error.
 
 Without any features, only plain TCP connections (and Unix domain sockets on Unix-like
 platforms) are available. For TLS support, __tls__ and __tls-rustls__ are mutually

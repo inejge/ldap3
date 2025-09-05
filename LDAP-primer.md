@@ -256,8 +256,8 @@ configuration. It should be obvious that sending the password should only be don
 a TLS-protected connection.
 
 Once a client has a connection, it may issue multiple operations to the server. The client
-can do this asynchronously, that is it does not have to wait for one operation to complete
-before issuing another operation. LDAP connections are often long lived.
+can do this asynchronously, meaning that it does not have to wait for one operation
+to complete before issuing another operation. LDAP connections are often long lived.
 
 When the client is finished, it may use the __unbind__ operation or simply drop
 the connection. The name "unbind" is slightly misleading, suggesting the opposite
@@ -379,4 +379,6 @@ Each control used has to indicate to the server if the control is "critical" to 
 operation, or not. If you include a critical control that the server does not support in some way,
 the server will fail the entire operation.
 
-Sometimes operation responses contain controls returned from the server.
+Sometimes operation responses contain controls returned from the server, called _response controls_.
+A response control is never unsolicited, but tied to the client's control issued in the operation
+that elicited the response.

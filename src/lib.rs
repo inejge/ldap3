@@ -240,8 +240,4 @@ pub use search::{
 };
 #[cfg(feature = "sync")]
 pub use sync::{EntryStream, LdapConn};
-#[allow(deprecated)]
-pub use util::{
-    dn_escape, get_url_params, ldap_escape, ldap_str_unescape, ldap_unescape, LdapUrlExt,
-    LdapUrlParams,
-};
+pub use util::{dn_escape, get_url_params, ldap_escape, ldap_unescape, LdapUrlExt, LdapUrlParams};

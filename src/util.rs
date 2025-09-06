@@ -318,11 +318,6 @@ pub fn get_url_params(url: &Url) -> Result<LdapUrlParams<'_>> {
     })
 }
 
-#[deprecated(since = "0.10.4", note = "use ldap_unescape instead")]
-pub fn ldap_str_unescape<'a, S: Into<Cow<'a, str>>>(val: S) -> Result<Cow<'a, str>> {
-    ldap_unescape(val)
-}
-
 /// Unescape a string using LDAP filter escapes.
 ///
 /// If a string contains `\nn` hexadecimal escapes, return a string where those

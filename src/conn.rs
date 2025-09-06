@@ -4,6 +4,8 @@ use std::net::IpAddr;
 use std::pin::Pin;
 #[cfg(feature = "tls-rustls")]
 use std::str::FromStr;
+#[cfg(feature = "tls-rustls")]
+use std::sync::LazyLock;
 #[cfg(feature = "gssapi")]
 use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
@@ -23,8 +25,6 @@ use lber::structures::{Null, Tag};
 #[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
 use futures_util::future::TryFutureExt;
 use futures_util::sink::SinkExt;
-#[cfg(feature = "tls-rustls")]
-use lazy_static::lazy_static;
 #[cfg(feature = "tls-native")]
 use native_tls::TlsConnector;
 #[cfg(unix)]
@@ -115,37 +115,33 @@ impl rustls::client::danger::ServerCertVerifier for NoCertVerification {
 }
 
 #[cfg(feature = "tls-rustls")]
-lazy_static! {
-    static ref CACERTS: RootCertStore = {
-        let mut store = RootCertStore::empty();
-        let cert_res = rustls_native_certs::load_native_certs();
-        let cert_vec = if cert_res.errors.is_empty() {
-            cert_res.certs
-        } else {
-            vec![]
-        };
-        for cert in cert_vec {
-            if let Ok(_) = store.add(cert) {}
-        }
-        store
+static CACERTS: LazyLock<RootCertStore> = LazyLock::new(|| {
+    let mut store = RootCertStore::empty();
+    let cert_res = rustls_native_certs::load_native_certs();
+    let cert_vec = if cert_res.errors.is_empty() {
+        cert_res.certs
+    } else {
+        vec![]
     };
-}
+    for cert in cert_vec {
+        if let Ok(_) = store.add(cert) {}
+    }
+    store
+});
 
 #[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
-lazy_static! {
-    static ref ENDPOINT_ALG: HashMap<&'static str, &'static Algorithm> = {
-        HashMap::from([
-            ("1.2.840.113549.1.1.4", &digest::SHA256),
-            ("1.2.840.113549.1.1.5", &digest::SHA256),
-            ("1.2.840.113549.1.1.11", &digest::SHA256),
-            ("1.2.840.113549.1.1.12", &digest::SHA384),
-            ("1.2.840.113549.1.1.13", &digest::SHA512),
-            ("1.2.840.10045.4.3.2", &digest::SHA256),
-            ("1.2.840.10045.4.3.3", &digest::SHA384),
-            ("1.2.840.10045.4.3.4", &digest::SHA512),
-        ])
-    };
-}
+static ENDPOINT_ALG: LazyLock<HashMap<&'static str, &'static Algorithm>> = LazyLock::new(|| {
+    HashMap::from([
+        ("1.2.840.113549.1.1.4", &digest::SHA256),
+        ("1.2.840.113549.1.1.5", &digest::SHA256),
+        ("1.2.840.113549.1.1.11", &digest::SHA256),
+        ("1.2.840.113549.1.1.12", &digest::SHA384),
+        ("1.2.840.113549.1.1.13", &digest::SHA512),
+        ("1.2.840.10045.4.3.2", &digest::SHA256),
+        ("1.2.840.10045.4.3.3", &digest::SHA384),
+        ("1.2.840.10045.4.3.4", &digest::SHA512),
+    ])
+});
 
 impl AsyncRead for ConnType {
     fn poll_read(

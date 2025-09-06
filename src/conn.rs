@@ -49,7 +49,9 @@ use tokio_stream::StreamExt;
 #[cfg(all(feature = "tls-native", feature = "tls-rustls"))]
 compile_error!(r#"Only one of "tls-native" and "tls-rustls" may be enabled for TLS support"#);
 #[cfg(all(feature = "tls-rustls", not(feature = "rustls-provider")))]
-compile_error!(r#"No crypto provider selected for Rustls, use "tls-rustls-aws-lc-rs" or "tls-rustls-ring", or see the README for instructions"#);
+compile_error!(
+    r#"No crypto provider selected for Rustls, use "tls-rustls-aws-lc-rs" or "tls-rustls-ring", or see the README for instructions"#
+);
 use tokio_util::codec::{Decoder, Framed};
 use url::{self, Url};
 

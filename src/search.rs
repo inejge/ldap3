@@ -105,12 +105,17 @@ impl SearchOptions {
     ///
     /// This is a server-side limit of the elapsed time for performing the operation, _not_ a
     /// network timeout for retrieving result entries or the result of the whole operation.
+    ///
+    /// The limit applies to a single protocol operation; if multiple operations are involved,
+    /// as in a Search with the PagedResult control, the limit won't apply to all of them.
     pub fn timelimit(mut self, timelimit: i32) -> Self {
         self.timelimit = timelimit;
         self
     }
 
     /// Set the size limit, in entries, for the whole search operation.
+    ///
+    /// For applicability, see the last paragraph of the `timelimit()` method.
     pub fn sizelimit(mut self, sizelimit: i32) -> Self {
         self.sizelimit = sizelimit;
         self

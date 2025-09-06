@@ -12,7 +12,7 @@ the "Compile-time features" section for details.
 
 The 0.12 branch will contain basic NTLM support, remove deprecated functions,
 and update the depnedencies and documentation. The earliest Rust version which
-can be used with NTLM is 1.85.0; without NTLM, 1.80.0 will work. The only
+can be used with NTLM is 1.85.0; without NTLM, 1.82.0 will work. The only
 breaking change is the use of feature flags when building with Rustls.
 
 The 0.11 branch is now in maintenance mode, and 0.10 is retired. If you're

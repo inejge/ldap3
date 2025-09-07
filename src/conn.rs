@@ -12,13 +12,13 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use crate::RequestId;
 #[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
 use crate::exop_impl::StartTLS;
 use crate::ldap::Ldap;
 use crate::protocol::{ItemSender, LdapCodec, LdapOp, MaybeControls, MiscSender, ResultSender};
 use crate::result::{LdapError, Result};
 use crate::search::SearchItem;
-use crate::RequestId;
 
 use lber::structures::{Null, Tag};
 
@@ -30,9 +30,9 @@ use native_tls::TlsConnector;
 #[cfg(unix)]
 use percent_encoding::percent_decode;
 #[cfg(all(any(feature = "gssapi", feature = "ntlm"), feature = "tls-rustls"))]
-use ring::digest::{self, digest, Algorithm};
+use ring::digest::{self, Algorithm, digest};
 #[cfg(feature = "tls-rustls")]
-use rustls::{pki_types::CertificateDer, pki_types::ServerName, ClientConfig, RootCertStore};
+use rustls::{ClientConfig, RootCertStore, pki_types::CertificateDer, pki_types::ServerName};
 use tokio::io::{self, AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpStream;
 #[cfg(unix)]
@@ -44,7 +44,7 @@ use tokio::time;
 #[cfg(all(feature = "tls-native", not(feature = "tls-rustls")))]
 use tokio_native_tls::{TlsConnector as TokioTlsConnector, TlsStream};
 #[cfg(all(feature = "tls-rustls", not(feature = "tls-native")))]
-use tokio_rustls::{client::TlsStream, TlsConnector as TokioTlsConnector};
+use tokio_rustls::{TlsConnector as TokioTlsConnector, client::TlsStream};
 use tokio_stream::StreamExt;
 #[cfg(all(feature = "tls-native", feature = "tls-rustls"))]
 compile_error!(r#"Only one of "tls-native" and "tls-rustls" may be enabled for TLS support"#);
@@ -460,7 +460,7 @@ impl LdapConnAsync {
                 UnixStream::from_std(stream)?
             }
             Some(StdStream::Tcp(_)) | Some(StdStream::Invalid) => {
-                return Err(LdapError::MismatchedStreamType)
+                return Err(LdapError::MismatchedStreamType);
             }
         };
         Ok(Self::conn_pair(ConnType::Unix(stream)))

@@ -3,10 +3,10 @@
 // 1. Simple Bind;
 // 2. "Who Am I?" Extended operation with a Proxied Authorization control.
 
+use ldap3::LdapConnAsync;
 use ldap3::controls::ProxyAuth;
 use ldap3::exop::{WhoAmI, WhoAmIResp};
 use ldap3::result::Result;
-use ldap3::LdapConnAsync;
 
 #[tokio::main]
 async fn main() -> Result<()> {

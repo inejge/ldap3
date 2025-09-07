@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use lber::structure::{StructureTag, PL};
+use lber::structure::{PL, StructureTag};
 use lber::structures::{ASNTag, Boolean, OctetString, Sequence, Tag};
 use lber::universal::Types;
 

@@ -118,15 +118,15 @@ pub mod asn1 {
     //! be extensively overhauled in the future. If you need examples of using the present interface
     //! for, e.g., implementing a new extended operation or a control, consult the source of existing
     //! exops/controls.
+    pub use lber::IResult;
     pub use lber::common::TagClass;
     pub use lber::parse::{parse_tag, parse_uint};
-    pub use lber::structure::{StructureTag, PL};
+    pub use lber::structure::{PL, StructureTag};
     pub use lber::structures::{
         ASNTag, Boolean, Enumerated, ExplicitTag, Integer, Null, OctetString, Sequence, Set, Tag,
     };
     pub use lber::universal::Types;
     pub use lber::write;
-    pub use lber::IResult;
 }
 mod conn;
 pub mod controls {
@@ -187,8 +187,8 @@ pub mod controls {
     //! }
     //! # Ok(())
     //! # }
-    pub use crate::controls_impl::parse_syncinfo;
     pub use crate::controls_impl::TxnSpec;
+    pub use crate::controls_impl::parse_syncinfo;
     pub use crate::controls_impl::{
         Assertion, ManageDsaIt, MatchedValues, PagedResults, ProxyAuth, RelaxRules,
     };
@@ -240,4 +240,4 @@ pub use search::{
 };
 #[cfg(feature = "sync")]
 pub use sync::{EntryStream, LdapConn};
-pub use util::{dn_escape, get_url_params, ldap_escape, ldap_unescape, LdapUrlExt, LdapUrlParams};
+pub use util::{LdapUrlExt, LdapUrlParams, dn_escape, get_url_params, ldap_escape, ldap_unescape};

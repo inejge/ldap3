@@ -10,7 +10,7 @@ use crate::parse_filter;
 use crate::protocol::LdapOp;
 use crate::result::{LdapError, LdapResult, Result};
 
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tokio::time;
 
 use lber::common::TagClass;
@@ -691,7 +691,7 @@ where
         };
         match item {
             SearchItem::Entry(tag) | SearchItem::Referral(tag) => {
-                return Ok(Some(ResultEntry(tag, controls)))
+                return Ok(Some(ResultEntry(tag, controls)));
             }
             SearchItem::Done(mut res) => {
                 res.ctrls = controls;

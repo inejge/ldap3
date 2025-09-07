@@ -2,7 +2,7 @@ use bytes::BytesMut;
 use lber::{
     common::TagClass,
     parse::{parse_tag, parse_uint},
-    structure::{StructureTag, PL},
+    structure::{PL, StructureTag},
     structures::{ASNTag, Boolean, Sequence, Tag},
     universal::Types,
     write,

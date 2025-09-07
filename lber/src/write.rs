@@ -1,7 +1,7 @@
 //! BER encoding support.
-use bytes::BytesMut;
 use crate::common::{TagClass, TagStructure};
-use crate::structure::{StructureTag, PL};
+use crate::structure::{PL, StructureTag};
+use bytes::BytesMut;
 
 use std::io::{self, Write};
 
@@ -152,7 +152,9 @@ mod tests {
 
         assert_eq!(
             buf,
-            vec![48, 14, 4, 12, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33]
+            vec![
+                48, 14, 4, 12, 72, 101, 108, 108, 111, 32, 87, 111, 114, 108, 100, 33
+            ]
         );
     }
 

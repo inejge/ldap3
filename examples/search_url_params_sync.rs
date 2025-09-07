@@ -2,7 +2,7 @@
 // for performing a Search.
 
 use ldap3::result::Result;
-use ldap3::{get_url_params, LdapConn, SearchEntry};
+use ldap3::{LdapConn, SearchEntry, get_url_params};
 use url::Url;
 
 fn main() -> Result<()> {

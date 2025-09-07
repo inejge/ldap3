@@ -4,6 +4,7 @@
 use lber::common::TagClass;
 use lber::structures::{Boolean, ExplicitTag, OctetString, Sequence, Tag};
 
+use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1};
 use nom::character::complete::digit1;
@@ -12,7 +13,6 @@ use nom::combinator::{map, map_res, opt, recognize, verify};
 use nom::multi::{fold_many0, many0, many1};
 use nom::number::complete::be_u8;
 use nom::sequence::{delimited, preceded};
-use nom::IResult;
 
 #[doc(hidden)]
 pub fn parse(input: impl AsRef<[u8]>) -> Result<Tag, ()> {

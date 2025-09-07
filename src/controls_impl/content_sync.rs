@@ -1,16 +1,16 @@
 use std::collections::HashSet;
 
-use crate::controls::{ControlParser, MakeCritical, RawControl};
 use crate::ResultEntry;
+use crate::controls::{ControlParser, MakeCritical, RawControl};
 
 use bytes::BytesMut;
 
 use lber::common::TagClass;
 use lber::parse::{parse_tag, parse_uint};
-use lber::structure::{StructureTag, PL};
+use lber::structure::{PL, StructureTag};
 use lber::structures::{ASNTag, Boolean, Enumerated, OctetString, Sequence, Tag};
 use lber::universal::Types;
-use lber::{write, IResult};
+use lber::{IResult, write};
 
 pub const SYNC_REQUEST_OID: &str = "1.3.6.1.4.1.4203.1.9.1.1";
 pub const SYNC_STATE_OID: &str = "1.3.6.1.4.1.4203.1.9.1.2";

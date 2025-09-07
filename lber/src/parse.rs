@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::common::TagClass;
 use crate::common::TagStructure;
-use crate::structure::{StructureTag, PL};
+use crate::structure::{PL, StructureTag};
 
 use nom;
 use nom::bits::streaming as bits;
@@ -114,7 +114,7 @@ impl Default for Parser {
 mod test {
     use super::*;
     use crate::common::TagClass;
-    use crate::structure::{StructureTag, PL};
+    use crate::structure::{PL, StructureTag};
 
     #[test]
     fn test_primitive() {

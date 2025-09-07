@@ -1,3 +1,4 @@
+use crate::RequestId;
 use crate::adapters::IntoAdapterVec;
 use crate::conn::{LdapConnAsync, LdapConnSettings};
 use crate::controls_impl::IntoRawControlVec;
@@ -5,7 +6,6 @@ use crate::exop::Exop;
 use crate::ldap::{Ldap, Mod};
 use crate::result::{CompareResult, ExopResult, LdapResult, Result, SearchResult};
 use crate::search::{ResultEntry, Scope, SearchOptions, SearchStream};
-use crate::RequestId;
 #[cfg(feature = "gssapi")]
 use cross_krb5::Cred;
 use std::collections::HashSet;

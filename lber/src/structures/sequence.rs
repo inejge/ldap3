@@ -1,6 +1,6 @@
-use std::default;
 use crate::structure;
 use crate::universal;
+use std::default;
 
 use super::{ASNTag, Tag};
 use crate::common::TagClass;

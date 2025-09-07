@@ -7,9 +7,9 @@
 //
 // Notice: only works on Unix (uses Unix domain sockets)
 
+use ldap3::LdapConnAsync;
 use ldap3::exop::{WhoAmI, WhoAmIResp};
 use ldap3::result::Result;
-use ldap3::LdapConnAsync;
 
 #[tokio::main]
 async fn main() -> Result<()> {

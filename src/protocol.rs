@@ -4,14 +4,14 @@ use std::sync::RwLock;
 #[cfg(feature = "gssapi")]
 use std::sync::{Arc, Mutex};
 
+use crate::RequestId;
 use crate::controls::{Control, RawControl};
 use crate::controls_impl::{build_tag, parse_controls};
 use crate::search::SearchItem;
-use crate::RequestId;
 
 use lber::common::TagClass;
 use lber::parse::parse_uint;
-use lber::structure::{StructureTag, PL};
+use lber::structure::{PL, StructureTag};
 use lber::structures::{ASNTag, Integer, Sequence, Tag};
 use lber::universal::Types;
 use lber::write;

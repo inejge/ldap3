@@ -27,11 +27,7 @@ impl StructureTag {
     }
 
     pub fn match_id(self, id: u64) -> Option<Self> {
-        if self.id == id {
-            Some(self)
-        } else {
-            None
-        }
+        if self.id == id { Some(self) } else { None }
     }
 
     pub fn expect_constructed(self) -> Option<Vec<StructureTag>> {

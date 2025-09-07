@@ -10,14 +10,14 @@ use std::fmt;
 use std::io;
 use std::result::Result as StdResult;
 
+use crate::RequestId;
 use crate::controls::Control;
 use crate::exop::Exop;
 use crate::ldap::SaslCreds;
 use crate::protocol::MiscSender;
 use crate::protocol::{LdapOp, MaybeControls, ResultSender};
-use crate::search::parse_refs;
 use crate::search::ResultEntry;
-use crate::RequestId;
+use crate::search::parse_refs;
 
 use lber::common::TagClass;
 use lber::parse::parse_uint;
@@ -336,7 +336,7 @@ impl From<Tag> for LdapResultExt {
                         val: None,
                     },
                     SaslCreds(None),
-                )
+                );
             }
             _ => unimplemented!(),
         };

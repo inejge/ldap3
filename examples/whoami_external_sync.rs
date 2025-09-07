@@ -7,9 +7,9 @@
 //
 // Notice: only works on Unix (uses Unix domain sockets)
 
+use ldap3::LdapConn;
 use ldap3::exop::{WhoAmI, WhoAmIResp};
 use ldap3::result::Result;
-use ldap3::LdapConn;
 
 fn main() -> Result<()> {
     let mut ldap = LdapConn::new("ldapi://ldapi")?;

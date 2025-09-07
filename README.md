@@ -12,8 +12,9 @@ See the "Compile-time features" section for details.
 
 The 0.12 branch contains basic NTLM support, removes deprecated functions, and updates
 the depnedencies and documentation. The earliest Rust version which can be used with NTLM
-is 1.85.0; without NTLM, 1.82.0 will work. The only breaking change is the use of feature
-flags when building with Rustls.
+is 1.85.0; without NTLM, 1.82.0 will work. The only breaking changes are the use of feature
+flags when building with Rustls and the removal of the deprecated `ldap_str_unescape()`
+function.
 
 The 0.11 branch is now in maintenance mode, and 0.10 is retired. If you're
 using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
@@ -22,7 +23,9 @@ using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
 
 API reference:
 
-- [Version 0.11.x](https://docs.rs/ldap3/0.11.3/ldap3/)
+- [Version 0.12.0-beta](https://docs.rs/ldap3/0.12.0-beta.1/ldap3/)
+
+- [Version 0.11.x](https://docs.rs/ldap3/0.11.5/ldap3/)
 
 There is an [LDAP introduction](https://github.com/inejge/ldap3/blob/faeb0eb38f74ba71358f31ff8437dc3d247fb41c/LDAP-primer.md)
 for those still getting their bearings in the LDAP world.

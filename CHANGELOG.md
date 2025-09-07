@@ -1,3 +1,37 @@
+## v0.12.0-beta.1, 2025-09-07
+
+* [breaking change] Compiling with Rustls now requires explicit
+  selection of a crypto provider. Using the "tls-rustls" flag by
+  itself is no longer enough. There are two predefined flags,
+  "tls-rustls-aws-lc-rs" and "tls-rustls-ring", for the two
+  common providers. See the README or top-level library documentation
+  for details.
+
+* [breaking change] Remove the deprecated `ldap_str_unescape()` in
+  favor of `ldap_unescape()`.
+
+* Add basic NTLM authentication support. Username and cleartext
+  password must be provided. Sing/seal on a non-TLS connection are
+  not supported. On a TLS connection, a channel binding token will
+  be sent to the server if possible.
+
+* Add support for using acquired credentials for GSSAPI through
+  `cross_krb5`
+  ([#149](https://github.com/inejge/ldap3/pull/149)).
+
+* Remove the `lazy_static` dependency and use `LazyLock` instead.
+  The impetus came from [#146](https://github.com/inejge/ldap3/pull/146),
+  although that PR wasn't used in the end.
+
+* Add the Transaction exop (RFC 5805)
+  ([#134](https://github.com/inejge/ldap3/pull/134)).
+
+* Add support for creating a client from an existing `TcpStream` or
+  `UnixStream`
+  ([#132](https://github.com/inejge/ldap3/pull/132)).
+
+* Update this crate and `lber` to Edition 2024.
+
 ## v0.11.3, 2023-06-08
 
 * Handle servers which return zero for `send_max_size` in the

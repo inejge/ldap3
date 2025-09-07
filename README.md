@@ -4,16 +4,16 @@ A pure-Rust LDAP client library using the Tokio stack.
 
 ### Attention!
 
-Building with Rustls requires explicitly selecting a crypto provider. TL;DR is
-to use the "rustls-aws-lc-rs" or "rustls-ring" feature instead of "rustls". See
-the "Compile-time features" section for details.
+Building with Rustls requires explicitly selecting a crypto provider. TL;DR is to use
+the "tls-rustls-aws-lc-rs" or "tls-rustls-ring" feature instead of "tls-rustls".
+See the "Compile-time features" section for details.
 
 ### Version notices
 
-The 0.12 branch will contain basic NTLM support, remove deprecated functions,
-and update the depnedencies and documentation. The earliest Rust version which
-can be used with NTLM is 1.85.0; without NTLM, 1.82.0 will work. The only
-breaking change is the use of feature flags when building with Rustls.
+The 0.12 branch contains basic NTLM support, removes deprecated functions, and updates
+the depnedencies and documentation. The earliest Rust version which can be used with NTLM
+is 1.85.0; without NTLM, 1.82.0 will work. The only breaking change is the use of feature
+flags when building with Rustls.
 
 The 0.11 branch is now in maintenance mode, and 0.10 is retired. If you're
 using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
@@ -24,7 +24,7 @@ API reference:
 
 - [Version 0.11.x](https://docs.rs/ldap3/0.11.3/ldap3/)
 
-There is an [LDAP introduction](https://github.com/inejge/ldap3/blob/27a247c8a6e4e2c86f664f4280c4c6499f0e9fe5/LDAP-primer.md)
+There is an [LDAP introduction](https://github.com/inejge/ldap3/blob/faeb0eb38f74ba71358f31ff8437dc3d247fb41c/LDAP-primer.md)
 for those still getting their bearings in the LDAP world.
 
 ### Miscellaneous notes

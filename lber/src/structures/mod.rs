@@ -1,4 +1,4 @@
-use structure;
+use crate::structure;
 
 pub mod boolean;
 pub mod explicit;

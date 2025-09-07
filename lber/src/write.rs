@@ -1,7 +1,7 @@
 //! BER encoding support.
 use bytes::BytesMut;
-use common::{TagClass, TagStructure};
-use structure::{StructureTag, PL};
+use crate::common::{TagClass, TagStructure};
+use crate::structure::{StructureTag, PL};
 
 use std::io::{self, Write};
 
@@ -121,8 +121,8 @@ mod tests {
 
     use bytes::BytesMut;
 
-    use common::TagClass::*;
-    use structures::*;
+    use crate::common::TagClass::*;
+    use crate::structures::*;
 
     #[test]
     fn encode_simple_tag() {

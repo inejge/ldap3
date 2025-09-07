@@ -1,4 +1,4 @@
-use common::TagClass;
+use crate::common::TagClass;
 
 /// ASN.1 structure prepared for serialization.
 #[derive(Clone, PartialEq, Debug, Eq)]
@@ -52,7 +52,7 @@ impl StructureTag {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::TagClass;
+    use crate::common::TagClass;
 
     #[test]
     fn expect_exact() {

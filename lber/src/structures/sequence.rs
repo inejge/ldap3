@@ -1,9 +1,9 @@
 use std::default;
-use structure;
-use universal;
+use crate::structure;
+use crate::universal;
 
 use super::{ASNTag, Tag};
-use common::TagClass;
+use crate::common::TagClass;
 
 /// Sequence of values.
 #[derive(Clone, Debug, PartialEq)]

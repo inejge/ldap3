@@ -1,9 +1,9 @@
 use std::default;
-use structure;
-use universal;
+use crate::structure;
+use crate::universal;
 
 use super::ASNTag;
-use common::TagClass;
+use crate::common::TagClass;
 
 /// String of bytes.
 #[derive(Clone, Debug, PartialEq)]

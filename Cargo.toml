@@ -42,7 +42,7 @@ async-trait = "0.1.89"
 
 [dependencies.lber]
 path = "lber"
-version = "0.5.0"
+version = "0.5.1"
 
 [features]
 default = ["sync", "tls"]

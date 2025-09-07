@@ -9,7 +9,7 @@ name = "ldap3"
 readme = "README.md"
 repository = "https://github.com/inejge/ldap3"
 version = "0.12.0-beta.1"
-edition = "2021"
+edition = "2024"
 
 [package.metadata.docs.rs]
 default-features = false

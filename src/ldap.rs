@@ -320,7 +320,7 @@ impl Ldap {
         let cti = if self.has_tls {
             let cbt = {
                 let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
-                if let Some(ref token) = self.tls_endpoint_token.as_ref() {
+                if let Some(token) = self.tls_endpoint_token.as_ref() {
                     cbt.extend(token);
                     Some(cbt)
                 } else {
@@ -496,7 +496,7 @@ impl Ldap {
         };
         if self.has_tls {
             let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
-            if let Some(ref token) = self.tls_endpoint_token.as_ref() {
+            if let Some(token) = self.tls_endpoint_token.as_ref() {
                 cbt.extend(token);
                 ntlm.set_channel_bindings(&cbt);
             }

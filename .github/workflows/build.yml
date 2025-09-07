@@ -17,7 +17,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-2019, macOS-latest]
         rust: [stable, nightly]
-        features: ["default", "sync,tls-rustls"]
+        features: ["default", "sync,tls-rustls-ring"]
 
     steps:
       - name: Checkout code

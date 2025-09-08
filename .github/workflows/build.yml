@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-2019, macOS-latest]
+        os: [ubuntu-latest, windows-2022, macOS-latest]
         rust: [stable, nightly]
         features: ["default", "sync,tls-rustls-ring"]
 

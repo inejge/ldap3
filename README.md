@@ -5,7 +5,7 @@ A pure-Rust LDAP client library using the Tokio stack.
 ### Attention!
 
 Building with Rustls requires explicitly selecting a crypto provider. TL;DR is to use
-the "tls-rustls-aws-lc-rs" or "tls-rustls-ring" feature instead of "tls-rustls".
+the __tls-rustls-aws-lc-rs__ or __tls-rustls-ring__ feature instead of __tls-rustls__.
 See the "Compile-time features" section for details.
 
 ### Version notices
@@ -23,7 +23,7 @@ using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
 
 API reference:
 
-- [Version 0.12.0-beta](https://docs.rs/ldap3/0.12.0-beta.1/ldap3/)
+- [Version 0.12.0-beta](https://docs.rs/ldap3/0.12.0-beta.2/ldap3/)
 
 - [Version 0.11.x](https://docs.rs/ldap3/0.11.5/ldap3/)
 
@@ -44,7 +44,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies.ldap3]
-version = "0.11.3"
+version = "0.12.0-beta"
 ```
 
 The library can be used either synchronously or asynchronously. The aim is to

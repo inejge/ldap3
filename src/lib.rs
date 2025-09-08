@@ -6,7 +6,7 @@
 //!
 //! ```toml
 //! [dependencies.ldap3]
-//! version = "0.11.3"
+//! version = "0.12.0-beta"
 //! ```
 //!
 //! ## Summary
@@ -40,10 +40,26 @@
 //!   For usage notes and caveats, see the documentation for
 //!   [`Ldap::sasl_gssapi_bind()`](struct.Ldap.html#method.sasl_gssapi_bind).
 //!
+//! * __ntlm__ (disabled by default): NTLM authentication support. Username and password must
+//!   be provided, and the password must be in cleartext. It works on TLS connections, or clear
+//!   connections with no signing or sealing. With TLS, a channel binding token is sent to the
+//!   server if possible. See [`Ldap::sasl_ntlm_bind()`](struct.Ldap.html#method.sasl_ntlm_bind).
+//!
 //! * __tls__ (enabled by default): TLS support, backed by the `native-tls` crate, which uses
 //!  a platform-specific TLS backend. This is an alias for __tls-native__.
 //!
-//! * __tls-rustls__ (disabled by default): TLS support, backed by the Rustls library.
+//! * __tls-rustls-...__ (disabled by default): TLS support, backed by the Rustls library. The
+//!   bare __tls-rustls__ flag, used previously for this purpose, won't work by itself; one
+//!   must choose the crypto provider for Rustls. There are two predefined flags for this
+//!   purpose, __tls-rustls-aws-lc-rs__ and __tls-rustls-ring__. If another provider is
+//!   needed, it can be chosen by activating the corresponding feature in Rustls and setting
+//!   the flags __tls-rustls__ and __rustls-provider__. For example the AWS FIPS provider can
+//!   be chosen with:
+//!
+//!   ... `--features tls-rustls,rustls/fips,rustls-provider`
+//!
+//!   Not selecting a provider, or selecting one without specifying __rustls-provider__, will
+//!   produce a compile-time error.
 //!
 //! Without any features, only plain TCP connections (and Unix domain sockets on Unix-like
 //! platforms) are available. For TLS support, __tls__ and __tls-rustls__ are mutually

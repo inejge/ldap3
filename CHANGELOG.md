@@ -1,4 +1,4 @@
-## v0.12.0-beta.1, 2025-09-07
+## v0.12.1, 2025-09-11
 
 * [breaking change] Compiling with Rustls now requires explicit
   selection of a crypto provider. Using the "tls-rustls" flag by
@@ -11,7 +11,7 @@
   favor of `ldap_unescape()`.
 
 * Add basic NTLM authentication support. Username and cleartext
-  password must be provided. Sing/seal on a non-TLS connection are
+  password must be provided. Sign/seal on a non-TLS connection are
   not supported. On a TLS connection, a channel binding token will
   be sent to the server if possible.
 

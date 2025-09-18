@@ -11,7 +11,7 @@ See the "Compile-time features" section for details.
 ### Version notices
 
 The 0.12 branch contains basic NTLM support, removes deprecated functions, and updates
-the depnedencies and documentation. The earliest Rust version which can be used with NTLM
+the dependencies and documentation. The earliest Rust version which can be used with NTLM
 is 1.85.0; without NTLM, 1.82.0 will work. The only breaking changes are the use of feature
 flags when building with Rustls and the removal of the deprecated `ldap_str_unescape()`
 function.
@@ -23,7 +23,7 @@ using GSSAPI and compiling with Rust 1.78.0 or later, upgrade to 0.11.5.
 
 API reference:
 
-- [Version 0.12.0-beta](https://docs.rs/ldap3/0.12.0-beta.2/ldap3/)
+- [Version 0.12.x](https://docs.rs/ldap3/0.12.1/ldap3/)
 
 - [Version 0.11.x](https://docs.rs/ldap3/0.11.5/ldap3/)
 
@@ -44,7 +44,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies.ldap3]
-version = "0.12.0-beta"
+version = "0.12.1"
 ```
 
 The library can be used either synchronously or asynchronously. The aim is to

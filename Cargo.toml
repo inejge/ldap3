@@ -13,7 +13,7 @@ edition = "2024"
 
 [package.metadata.docs.rs]
 default-features = false
-features = ["sync", "tls", "gssapi"]
+features = ["sync", "tls", "gssapi", "ntlm"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]

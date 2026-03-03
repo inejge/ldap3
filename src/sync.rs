@@ -129,6 +129,20 @@ impl LdapConn {
         rt.block_on(async move { ldap.sasl_ntlm_bind(username, password).await })
     }
 
+    #[cfg_attr(docsrs, doc(cfg(feature = "ntlm")))]
+    #[cfg(feature = "ntlm")]
+    /// See [`Ldap::sasl_ntlm_bind_with_hash()`](struct.Ldap.html#method.sasl_ntlm_bind_with_hash).
+    pub fn sasl_ntlm_bind_with_hash(
+        &mut self,
+        username: &str,
+        domain: &str,
+        hash: &crate::NtlmHash,
+    ) -> Result<LdapResult> {
+        let rt = &mut self.rt;
+        let ldap = &mut self.ldap;
+        rt.block_on(async move { ldap.sasl_ntlm_bind_with_hash(username, domain, hash).await })
+    }
+
     /// See [`Ldap::search()`](struct.Ldap.html#method.search).
     pub fn search<'a, S: AsRef<str> + Send + Sync + 'a, A: AsRef<[S]> + Send + Sync + 'a>(
         &mut self,

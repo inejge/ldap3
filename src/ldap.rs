@@ -508,6 +508,80 @@ impl Ldap {
         Ok(self.op_call(LdapOp::Single, req).await?.0)
     }
 
+    #[cfg_attr(docsrs, doc(cfg(feature = "ntlm")))]
+    #[cfg(feature = "ntlm")]
+    /// Do an SASL GSS-SPNEGO bind with an NTLMSSP exchange on the connection using
+    /// an NTLM hash instead of a password. The username and domain must be provided
+    /// separately, along with the pre-computed NTLM hash.
+    ///
+    /// __Caveat:__ the connection cannot be encrypted by NTLM "sealing". For encryption, use
+    /// TLS. A channel binding token is automatically sent on a TLS connection, if possible.
+    pub async fn sasl_ntlm_bind_with_hash(
+        &mut self,
+        username: &str,
+        domain: &str,
+        ntlm_hash: &crate::NtlmHash,
+    ) -> Result<LdapResult> {
+        use sspi::{
+            AuthIdentityBuffers, BufferType, ClientRequestFlags, DataRepresentation, Ntlm,
+            SecurityBuffer, SecurityStatus, Sspi, SspiImpl,
+        };
+        const LDAP_RESULT_SASL_BIND_IN_PROGRESS: u32 = 14;
+
+        fn step(
+            ntlm: &mut Ntlm,
+            acq_creds: &mut Option<AuthIdentityBuffers>,
+            input: &[u8],
+        ) -> Result<Vec<u8>> {
+            let mut input = vec![SecurityBuffer::new(input.to_vec(), BufferType::Token)];
+            let mut output = vec![SecurityBuffer::new(Vec::new(), BufferType::Token)];
+            let mut builder = ntlm
+                .initialize_security_context()
+                .with_credentials_handle(acq_creds)
+                .with_context_requirements(ClientRequestFlags::ALLOCATE_MEMORY)
+                .with_target_data_representation(DataRepresentation::Native)
+                .with_input(&mut input)
+                .with_output(&mut output);
+            let result = ntlm
+                .initialize_security_context_impl(&mut builder)?
+                .resolve_to_result()?;
+            match result.status {
+                SecurityStatus::CompleteNeeded | SecurityStatus::CompleteAndContinue => {
+                    ntlm.complete_auth_token(&mut output)?
+                }
+                s => s,
+            };
+            Ok(output.swap_remove(0).buffer)
+        }
+
+        let credentials = AuthIdentityBuffers::from_utf8_with_hash(username, domain, ntlm_hash);
+
+        let mut ntlm = Ntlm::new();
+        let mut acq_creds = Some(credentials);
+
+        let req = sasl_bind_req("GSS-SPNEGO", Some(&step(&mut ntlm, &mut acq_creds, &[])?));
+        let (res, _, token) = self.op_call(LdapOp::Single, req).await?;
+        if res.rc != LDAP_RESULT_SASL_BIND_IN_PROGRESS {
+            return Ok(res);
+        }
+        let token = match token.0 {
+            Some(token) => token,
+            _ => return Err(LdapError::NoNtlmChallengeToken),
+        };
+        if self.has_tls {
+            let mut cbt = Vec::from(&b"tls-server-end-point:"[..]);
+            if let Some(token) = self.tls_endpoint_token.as_ref() {
+                cbt.extend(token);
+                ntlm.set_channel_bindings(&cbt);
+            }
+        }
+        let req = sasl_bind_req(
+            "GSS-SPNEGO",
+            Some(&step(&mut ntlm, &mut acq_creds, &token)?),
+        );
+        Ok(self.op_call(LdapOp::Single, req).await?.0)
+    }
+
     /// Perform a Search with the given base DN (`base`), scope, filter, and
     /// the list of attributes to be returned (`attrs`). If `attrs` is empty,
     /// or if it contains a special name `*` (asterisk), return all (user) attributes.

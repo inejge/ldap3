@@ -102,6 +102,17 @@ impl LdapConn {
         rt.block_on(async move { ldap.sasl_external_bind().await })
     }
 
+    /// See [`Ldap::sasl_bind()`](struct.Ldap.html#method.sasl_bind).
+    pub fn sasl_bind(
+        &mut self,
+        mechanism: &str,
+        credentials: Option<&[u8]>,
+    ) -> Result<(LdapResult, Option<Vec<u8>>)> {
+        let rt = &mut self.rt;
+        let ldap = &mut self.ldap;
+        rt.block_on(async move { ldap.sasl_bind(mechanism, credentials).await })
+    }
+
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
     #[cfg(feature = "gssapi")]
     /// See [`Ldap::sasl_gssapi_bind()`](struct.Ldap.html#method.sasl_gssapi_bind).

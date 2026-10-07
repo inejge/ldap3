@@ -274,6 +274,25 @@ impl Ldap {
         Ok(self.op_call(LdapOp::Single, req).await?.0)
     }
 
+    /// Do one step of a SASL bind: send a Bind request with `mechanism` and
+    /// `credentials`, and return its result and the server SASL credentials,
+    /// if any.
+    ///
+    /// Callers can implement unsupported SASL mechanisms or use alternative
+    /// implementations, such as GSSAPI with a pure-Rust Kerberos client.
+    /// For multistep mechanisms, call again with the next client credentials
+    /// while the result code is 14
+    /// (`saslBindInProgress`, RFC 4511 section 4.2.2).
+    pub async fn sasl_bind(
+        &mut self,
+        mechanism: &str,
+        credentials: Option<&[u8]>,
+    ) -> Result<(LdapResult, Option<Vec<u8>>)> {
+        let req = sasl_bind_req(mechanism, credentials);
+        let (result, _, server_credentials) = self.op_call(LdapOp::Single, req).await?;
+        Ok((result, server_credentials.0))
+    }
+
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
     #[cfg(feature = "gssapi")]
     /// Do an SASL GSSAPI bind on the connection, using the default Kerberos credentials

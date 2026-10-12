@@ -24,7 +24,10 @@ use tokio_util::codec::{Decoder, Encoder};
 
 pub(crate) struct LdapCodec {
     #[cfg(feature = "gssapi")]
-    pub(crate) has_decoded_data: bool,
+    /// Plaintext unwrapped from SASL buffers and not yet decoded: the rest
+    /// of a buffer holding several LDAP messages, or the start of a message
+    /// continued in the next buffer. See `decode_sasl`.
+    pub(crate) decoded: BytesMut,
     #[cfg(feature = "gssapi")]
     pub(crate) sasl_param: Arc<RwLock<(bool, u32)>>, // sasl_wrap, sasl_max_send
     #[cfg(feature = "gssapi")]
@@ -126,38 +129,67 @@ impl Decoder for LdapCodec {
 
     #[cfg(feature = "gssapi")]
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        const U32_SIZE: usize = std::mem::size_of::<u32>();
-
         let sasl_wrap = { self.sasl_param.read().expect("sasl param").0 };
-        if !sasl_wrap || buf.is_empty() {
+        if !sasl_wrap {
             return decode_inner(buf);
         }
-        if self.has_decoded_data {
-            let res = decode_inner(buf);
-            if res.is_ok() && buf.is_empty() {
-                self.has_decoded_data = false;
+        let client_ctx = self.client_ctx.clone();
+        decode_sasl(&mut self.decoded, buf, |len, raw| {
+            let client_opt = &mut *client_ctx.lock().expect("client ctx lock");
+            let client_ctx = client_opt.as_mut().expect("client Option mut ref");
+            client_ctx.unwrap_iov(len, raw).map_err(|e| {
+                io::Error::new(io::ErrorKind::Other, format!("gss_unwrap error: {:#}", e))
+            })
+        })
+    }
+}
+
+/// The next LDAP message of a SASL-wrapped (GSSAPI sealed) stream.
+///
+/// `raw` holds what was read from the socket: SASL buffers, each a 4-byte
+/// big-endian length and that many wrapped bytes. `unwrap(len, raw)` unwraps
+/// the buffer at the start of `raw` (its length prefix already taken off),
+/// removes it from `raw` and returns its plaintext. `decoded` keeps the
+/// plaintext between calls.
+///
+/// Every message of every buffer is returned in order, and a message split
+/// across buffers is put together. A buffer can hold many messages: Active
+/// Directory seals a whole search page (a megabyte and more, hundreds of
+/// messages) as one buffer, and replies to other operations on the
+/// connection may already be read behind it.
+#[cfg(feature = "gssapi")]
+#[allow(clippy::type_complexity)]
+fn decode_sasl<F>(
+    decoded: &mut BytesMut,
+    raw: &mut BytesMut,
+    mut unwrap: F,
+) -> Result<Option<(RequestId, (Tag, Vec<Control>))>, io::Error>
+where
+    F: FnMut(usize, &mut BytesMut) -> io::Result<BytesMut>,
+{
+    const U32_SIZE: usize = std::mem::size_of::<u32>();
+    loop {
+        if !decoded.is_empty() {
+            if let Some(item) = decode_inner(decoded)? {
+                return Ok(Some(item));
             }
-            return res;
+            // An incomplete message: its rest is in the next buffer.
         }
-        if buf.len() < U32_SIZE {
-            return Err(io::Error::new(io::ErrorKind::Other, "invalid SASL buffer"));
-        }
-        let sasl_len = u32::from_be_bytes(buf[0..U32_SIZE].try_into().unwrap());
-        if buf.len() - U32_SIZE < sasl_len as usize {
+        if raw.len() < U32_SIZE {
             return Ok(None);
         }
-        buf.advance(U32_SIZE);
-        let client_opt = &mut *self.client_ctx.lock().expect("client ctx lock");
-        let client_ctx = client_opt.as_mut().expect("client Option mut ref");
-        let mut decoded = client_ctx.unwrap_iov(sasl_len as usize, buf).map_err(|e| {
-            io::Error::new(io::ErrorKind::Other, format!("gss_unwrap error: {:#}", e))
-        })?;
-        let res = decode_inner(&mut decoded);
-        if res.is_ok() && !decoded.is_empty() && buf.is_empty() {
-            buf.extend(decoded);
-            self.has_decoded_data = true;
+        let sasl_len = u32::from_be_bytes(raw[0..U32_SIZE].try_into().unwrap()) as usize;
+        if raw.len() - U32_SIZE < sasl_len {
+            raw.reserve(U32_SIZE + sasl_len - raw.len());
+            return Ok(None);
         }
-        res
+        raw.advance(U32_SIZE);
+        let plain = unwrap(sasl_len, raw)?;
+        if decoded.is_empty() {
+            *decoded = plain;
+        } else {
+            decoded.extend_from_slice(&plain);
+        }
     }
 }
 
@@ -241,5 +273,104 @@ impl Encoder<(RequestId, Tag, MaybeControls)> for LdapCodec {
         };
         maybe_wrap(self, outstruct, into)?;
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "gssapi"))]
+mod sasl_tests {
+    use super::*;
+    use lber::structures::OctetString;
+
+    /// An LDAP message: id and an octet string of `size` bytes.
+    fn message(id: i32, size: usize) -> Vec<u8> {
+        let msg = Tag::Sequence(Sequence {
+            inner: vec![
+                Tag::Integer(Integer {
+                    inner: id as i64,
+                    ..Default::default()
+                }),
+                Tag::OctetString(OctetString {
+                    inner: vec![b'x'; size],
+                    ..Default::default()
+                }),
+            ],
+            ..Default::default()
+        })
+        .into_structure();
+        let mut out = BytesMut::new();
+        write::encode_into(&mut out, msg).unwrap();
+        out.to_vec()
+    }
+
+    /// A SASL buffer: length prefix and the plaintext, as the identity
+    /// "unwrap" below expects.
+    fn frame(plain: &[u8]) -> Vec<u8> {
+        let mut out = (plain.len() as u32).to_be_bytes().to_vec();
+        out.extend_from_slice(plain);
+        out
+    }
+
+    fn identity(len: usize, raw: &mut BytesMut) -> io::Result<BytesMut> {
+        Ok(raw.split_to(len))
+    }
+
+    /// Feeds `stream` in `chunk`-byte reads, as a socket might deliver it,
+    /// and returns the message ids decoded.
+    fn decode_all(stream: &[u8], chunk: usize) -> Vec<i32> {
+        let mut decoded = BytesMut::new();
+        let mut raw = BytesMut::new();
+        let mut ids = Vec::new();
+        for piece in stream.chunks(chunk) {
+            raw.extend_from_slice(piece);
+            while let Some((id, _)) = decode_sasl(&mut decoded, &mut raw, identity).unwrap() {
+                ids.push(id);
+            }
+        }
+        assert!(raw.is_empty() && decoded.is_empty(), "bytes left over");
+        ids
+    }
+
+    #[test]
+    fn every_message_of_a_buffer_is_kept_when_more_is_read_with_it() {
+        // Three messages in one buffer (AD seals a search page as one),
+        // and a reply to another operation read along with it.
+        let mut first = message(1, 300);
+        first.extend(message(1, 300));
+        first.extend(message(1, 10));
+        let mut stream = frame(&first);
+        stream.extend(frame(&message(2, 5)));
+        for chunk in [1, 7, 100, stream.len()] {
+            assert_eq!(
+                decode_all(&stream, chunk),
+                vec![1, 1, 1, 2],
+                "chunk {chunk}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_message_split_across_buffers_is_put_together() {
+        let big = message(3, 5000);
+        let (a, b) = big.split_at(1234);
+        let mut plain2 = b.to_vec();
+        plain2.extend(message(4, 1));
+        let mut stream = frame(a);
+        stream.extend(frame(&plain2));
+        stream.extend(frame(&message(5, 0)));
+        for chunk in [1, 3, 4096, stream.len()] {
+            assert_eq!(decode_all(&stream, chunk), vec![3, 4, 5], "chunk {chunk}");
+        }
+    }
+
+    #[test]
+    fn a_partial_length_prefix_waits_for_more() {
+        let mut decoded = BytesMut::new();
+        let mut raw = BytesMut::from(&[0u8, 0][..]);
+        assert!(
+            decode_sasl(&mut decoded, &mut raw, identity)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(raw.len(), 2);
     }
 }

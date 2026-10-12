@@ -667,7 +667,7 @@ impl LdapConnAsync {
         let client_ctx = Arc::new(Mutex::new(None));
         let codec = LdapCodec {
             #[cfg(feature = "gssapi")]
-            has_decoded_data: false,
+            decoded: bytes::BytesMut::new(),
             #[cfg(feature = "gssapi")]
             sasl_param: Arc::new(RwLock::new((false, 0))),
             #[cfg(feature = "gssapi")]

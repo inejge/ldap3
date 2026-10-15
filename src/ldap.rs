@@ -397,7 +397,7 @@ impl Ldap {
         } else {
             GSSAUTH_P_PRIVACY
         };
-        if buf[0] | needed_layer == 0 {
+        if buf[0] & needed_layer == 0 {
             return Err(LdapError::GssapiOperationError(format!(
                 "no appropriate security layer offered: needed {}, mask {}",
                 needed_layer, buf[0]

@@ -51,12 +51,14 @@ pub enum LdapOp {
 
 #[allow(clippy::type_complexity)]
 fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Control>))>, io::Error> {
-    let decoding_error = io::Error::new(io::ErrorKind::Other, "decoding error");
+    // Messages are untrusted input (a server reply, possibly malformed or hostile):
+    // a missing element must be reported as a decoding error, never panic the decoder.
+    let err = || io::Error::new(io::ErrorKind::Other, "decoding error");
     let mut parser = lber::Parser::new();
     let binding = parser.parse(buf);
     let (i, tag) = match binding {
         Err(e) if e.is_incomplete() => return Ok(None),
-        Err(_e) => return Err(decoding_error),
+        Err(_e) => return Err(err()),
         Ok((i, ref tag)) => (i, tag),
     };
     buf.advance(buf.len() - i.len());
@@ -66,9 +68,9 @@ fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Contr
         .and_then(|t| t.expect_constructed())
     {
         Some(tags) => tags,
-        None => return Err(decoding_error),
+        None => return Err(err()),
     };
-    let mut maybe_controls = tags.pop().expect("element");
+    let mut maybe_controls = tags.pop().ok_or_else(err)?;
     let has_controls = match maybe_controls {
         StructureTag {
             id,
@@ -76,7 +78,7 @@ fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Contr
             ref payload,
         } if class == TagClass::Context && id == 0 => match *payload {
             PL::C(_) => true,
-            PL::P(_) => return Err(decoding_error),
+            PL::P(_) => return Err(err()),
         },
         StructureTag { id, class, .. } if class == TagClass::Context && id == 10 => {
             // Active Directory bug workaround
@@ -86,13 +88,13 @@ fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Contr
             // but AD puts it outside, where the optional controls belong. This confuses
             // our parser, which doesn't expect the extra sequence element at the end
             // and crashes. This match arm thus ignores the element.
-            maybe_controls = tags.pop().expect("element");
+            maybe_controls = tags.pop().ok_or_else(err)?;
             false
         }
         _ => false,
     };
     let (protoop, controls) = if has_controls {
-        (tags.pop().expect("element"), Some(maybe_controls))
+        (tags.pop().ok_or_else(err)?, Some(maybe_controls))
     } else {
         (maybe_controls, None)
     };
@@ -102,15 +104,15 @@ fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Contr
     };
     let msgid = match parse_uint(
         tags.pop()
-            .expect("element")
+            .ok_or_else(err)?
             .match_class(TagClass::Universal)
             .and_then(|t| t.match_id(Types::Integer as u64))
             .and_then(|t| t.expect_primitive())
-            .expect("message id")
+            .ok_or_else(err)?
             .as_slice(),
     ) {
         Ok((_, id)) => id as i32,
-        _ => return Err(decoding_error),
+        _ => return Err(err()),
     };
     Ok(Some((msgid, (Tag::StructureTag(protoop), controls))))
 }
@@ -241,5 +243,25 @@ impl Encoder<(RequestId, Tag, MaybeControls)> for LdapCodec {
         };
         maybe_wrap(self, outstruct, into)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod decode_panic_tests {
+    use super::*;
+    use bytes::BytesMut;
+
+    // A message that parses as a SEQUENCE with fewer elements than the decoder
+    // expects must surface as a decoding error, never panic the connection task.
+    #[test]
+    fn malformed_messages_error_not_panic() {
+        let cases: [&[u8]; 2] = [
+            &[0x30, 0x00],             // empty SEQUENCE: first pop() underflows
+            &[0x30, 0x02, 0x30, 0x00], // SEQUENCE with one element: msgid pop() underflows
+        ];
+        for bytes in cases {
+            let mut buf = BytesMut::from(bytes);
+            assert!(decode_inner(&mut buf).is_err(), "must error, not panic, on {bytes:02x?}");
+        }
     }
 }

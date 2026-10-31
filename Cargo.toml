@@ -37,7 +37,7 @@ x509-parser = { version = "0.18.0", optional = true }
 ring = { version = "0.17.14", optional = true }
 cross-krb5 = { version = "0.4.2", optional = true }
 either = { version = "1.15.0", optional = true }
-sspi = { version = "0.16.1", optional = true }
+sspi = { version = "0.23.1", optional = true, default-features = false, features = ["ring"] }
 async-trait = "0.1.89"
 
 [dependencies.lber]
@@ -55,10 +55,12 @@ rustls-provider = []
 sync = ["tokio/rt"]
 gssapi = ["cross-krb5","dep:ring","dep:either"]
 ntlm = ["sspi","dep:ring"]
+fuzzing = []
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "io-util", "sync", "time", "net", "rt-multi-thread"] }
 env_logger = "0.11.8"
+sspi = { version = "0.23.1", default-features = false, features = ["ring"] }
 
 [workspace]
 members = [".", "lber"]

@@ -6,8 +6,6 @@ use std::pin::Pin;
 use std::str::FromStr;
 #[cfg(feature = "tls-rustls")]
 use std::sync::LazyLock;
-#[cfg(feature = "gssapi")]
-use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -17,12 +15,13 @@ use crate::RequestId;
 use crate::exop_impl::StartTLS;
 use crate::ldap::Ldap;
 use crate::protocol::{ItemSender, LdapCodec, LdapOp, MaybeControls, MiscSender, ResultSender};
+use crate::sasl_layer::SharedLayer;
 use crate::result::{LdapError, Result};
 use crate::search::SearchItem;
 
 use lber::structures::{Null, Tag};
 
-#[cfg(any(feature = "tls-native", feature = "tls-rustls"))]
+use bytes::BytesMut;
 use futures_util::future::TryFutureExt;
 use futures_util::sink::SinkExt;
 #[cfg(feature = "tls-native")]
@@ -663,18 +662,11 @@ impl LdapConnAsync {
     }
 
     fn conn_pair(ctype: ConnType) -> (Self, Ldap) {
-        #[cfg(feature = "gssapi")]
-        let client_ctx = Arc::new(Mutex::new(None));
+        let sasl_layer: SharedLayer = Arc::new(Mutex::new(None));
         let codec = LdapCodec {
-            #[cfg(feature = "gssapi")]
-            has_decoded_data: false,
-            #[cfg(feature = "gssapi")]
-            sasl_param: Arc::new(RwLock::new((false, 0))),
-            #[cfg(feature = "gssapi")]
-            client_ctx: client_ctx.clone(),
+            layer: sasl_layer.clone(),
+            plain: BytesMut::new(),
         };
-        #[cfg(feature = "gssapi")]
-        let sasl_param = codec.sasl_param.clone();
         let (tx, rx) = mpsc::unbounded_channel();
         let (id_scrub_tx, id_scrub_rx) = mpsc::unbounded_channel();
         let (misc_tx, misc_rx) = mpsc::unbounded_channel();
@@ -692,10 +684,7 @@ impl LdapConnAsync {
             tx,
             id_scrub_tx,
             misc_tx,
-            #[cfg(feature = "gssapi")]
-            sasl_param,
-            #[cfg(feature = "gssapi")]
-            client_ctx,
+            sasl_layer,
             #[cfg(any(feature = "gssapi", feature = "ntlm"))]
             tls_endpoint_token: Arc::new(None),
             has_tls: false,

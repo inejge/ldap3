@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 use std::hash::Hash;
-#[cfg(feature = "gssapi")]
-use std::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,6 +9,7 @@ use crate::controls_impl::IntoRawControlVec;
 use crate::exop::Exop;
 use crate::exop_impl::construct_exop;
 use crate::protocol::{LdapOp, MaybeControls, MiscSender, ResultSender};
+use crate::sasl_layer::{ActiveLayer, SaslSecurityLayer, SharedLayer};
 use crate::result::{
     CompareResult, ExopResult, LdapError, LdapResult, LdapResultExt, Result, SearchResult,
 };
@@ -79,10 +78,7 @@ pub struct Ldap {
     pub(crate) id_scrub_tx: mpsc::UnboundedSender<RequestId>,
     pub(crate) misc_tx: mpsc::UnboundedSender<MiscSender>,
     pub(crate) last_id: RequestId,
-    #[cfg(feature = "gssapi")]
-    pub(crate) sasl_param: Arc<RwLock<(bool, u32)>>, // sasl_wrap, sasl_max_send
-    #[cfg(feature = "gssapi")]
-    pub(crate) client_ctx: Arc<Mutex<Option<ClientCtx>>>,
+    pub(crate) sasl_layer: SharedLayer,
     #[cfg(any(feature = "gssapi", feature = "ntlm"))]
     pub(crate) tls_endpoint_token: Arc<Option<Vec<u8>>>,
     pub(crate) has_tls: bool,
@@ -98,10 +94,7 @@ impl Clone for Ldap {
             tx: self.tx.clone(),
             id_scrub_tx: self.id_scrub_tx.clone(),
             misc_tx: self.misc_tx.clone(),
-            #[cfg(feature = "gssapi")]
-            sasl_param: self.sasl_param.clone(),
-            #[cfg(feature = "gssapi")]
-            client_ctx: self.client_ctx.clone(),
+            sasl_layer: self.sasl_layer.clone(),
             #[cfg(any(feature = "gssapi", feature = "ntlm"))]
             tls_endpoint_token: self.tls_endpoint_token.clone(),
             has_tls: self.has_tls,
@@ -274,6 +267,45 @@ impl Ldap {
         Ok(self.op_call(LdapOp::Single, req).await?.0)
     }
 
+    /// Do one step of a SASL bind: send a Bind request with `mechanism` and
+    /// `credentials`, and return its result and the server SASL credentials,
+    /// if any.
+    ///
+    /// Callers can implement mechanisms this crate does not support, or use
+    /// alternative implementations, such as GSSAPI with a pure-Rust Kerberos
+    /// client. For multistep mechanisms, call again with the next client
+    /// credentials while the result code is 14 (`saslBindInProgress`,
+    /// RFC 4511 section 4.2.2). If the mechanism negotiated a security layer,
+    /// install it with [`set_sasl_security_layer()`](#method.set_sasl_security_layer)
+    /// once the bind has succeeded.
+    pub async fn sasl_bind(
+        &mut self,
+        mechanism: &str,
+        credentials: Option<&[u8]>,
+    ) -> Result<(LdapResult, Option<Vec<u8>>)> {
+        let req = sasl_bind_req(mechanism, credentials);
+        let (result, _, server_credentials) = self.op_call(LdapOp::Single, req).await?;
+        Ok((result, server_credentials.0))
+    }
+
+    /// Put a SASL security layer in effect on the connection: every subsequent
+    /// LDAP message is wrapped and unwrapped by `layer` (RFC 4422, section 3.7).
+    /// `max_send` is the largest buffer the server accepts, as negotiated by the
+    /// mechanism; 0 means unlimited.
+    ///
+    /// Call it right after the successful bind, before issuing other operations.
+    /// The layer applies to all clones of this handle.
+    pub fn set_sasl_security_layer(&mut self, layer: Box<dyn SaslSecurityLayer>, max_send: u32) {
+        let mut guard = self.sasl_layer.lock().expect("sasl layer lock");
+        *guard = Some(ActiveLayer { layer, max_send });
+    }
+
+    /// Whether the connection runs over TLS (LDAPS or StartTLS). SASL mechanisms
+    /// typically skip their own security layer over TLS.
+    pub fn has_tls(&self) -> bool {
+        self.has_tls
+    }
+
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]
     #[cfg(feature = "gssapi")]
     /// Do an SASL GSSAPI bind on the connection, using the default Kerberos credentials
@@ -412,20 +444,13 @@ impl Ldap {
             .map_err(|e| LdapError::GssapiOperationError(format!("{:#}", e)))?;
         let req = sasl_bind_req("GSSAPI", Some(&size_msg));
         let res = self.op_call(LdapOp::Single, req).await?.0;
-        if res.rc == 0 {
-            if needed_layer == GSSAUTH_P_PRIVACY {
-                buf[0] = 0;
-                let send_max_size =
-                    u32::from_be_bytes((&buf[..]).try_into().expect("send max size"));
-                if send_max_size == 0 {
-                    warn!("got zero send_max_size, will be treated as unlimited");
-                }
-                let mut sasl_param = self.sasl_param.write().expect("sasl param");
-                sasl_param.0 = true;
-                sasl_param.1 = send_max_size;
+        if res.rc == 0 && needed_layer == GSSAUTH_P_PRIVACY {
+            buf[0] = 0;
+            let send_max_size = u32::from_be_bytes((&buf[..]).try_into().expect("send max size"));
+            if send_max_size == 0 {
+                warn!("got zero send_max_size, will be treated as unlimited");
             }
-            let client_opt = &mut *self.client_ctx.lock().unwrap();
-            client_opt.replace(client_ctx);
+            self.set_sasl_security_layer(Box::new(Krb5Layer(client_ctx)), send_max_size);
         }
         Ok(res)
     }
@@ -875,5 +900,26 @@ impl Ldap {
         {
             Ok(None)
         }
+    }
+}
+
+/// Adapter between the cross-krb5 context and the generic SASL security layer.
+#[cfg(feature = "gssapi")]
+struct Krb5Layer(ClientCtx);
+
+#[cfg(feature = "gssapi")]
+impl SaslSecurityLayer for Krb5Layer {
+    fn wrap(&mut self, plain: &[u8]) -> std::io::Result<Vec<u8>> {
+        self.0
+            .wrap(true, plain)
+            .map(|b| b.to_vec())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("gss_wrap error: {:#}", e)))
+    }
+
+    fn unwrap(&mut self, wrapped: &[u8]) -> std::io::Result<Vec<u8>> {
+        self.0
+            .unwrap(wrapped)
+            .map(|b| b.to_vec())
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("gss_unwrap error: {:#}", e)))
     }
 }

@@ -3,6 +3,7 @@ use crate::adapters::IntoAdapterVec;
 use crate::conn::{LdapConnAsync, LdapConnSettings};
 use crate::controls_impl::IntoRawControlVec;
 use crate::exop::Exop;
+use crate::sasl_layer::SaslSecurityLayer;
 use crate::ldap::{Ldap, Mod};
 use crate::result::{CompareResult, ExopResult, LdapResult, Result, SearchResult};
 use crate::search::{ResultEntry, Scope, SearchOptions, SearchStream};
@@ -100,6 +101,22 @@ impl LdapConn {
         let rt = &mut self.rt;
         let ldap = &mut self.ldap;
         rt.block_on(async move { ldap.sasl_external_bind().await })
+    }
+
+    /// See [`Ldap::sasl_bind()`](struct.Ldap.html#method.sasl_bind).
+    pub fn sasl_bind(
+        &mut self,
+        mechanism: &str,
+        credentials: Option<&[u8]>,
+    ) -> Result<(LdapResult, Option<Vec<u8>>)> {
+        let rt = &mut self.rt;
+        let ldap = &mut self.ldap;
+        rt.block_on(async move { ldap.sasl_bind(mechanism, credentials).await })
+    }
+
+    /// See [`Ldap::set_sasl_security_layer()`](struct.Ldap.html#method.set_sasl_security_layer).
+    pub fn set_sasl_security_layer(&mut self, layer: Box<dyn SaslSecurityLayer>, max_send: u32) {
+        self.ldap.set_sasl_security_layer(layer, max_send)
     }
 
     #[cfg_attr(docsrs, doc(cfg(feature = "gssapi")))]

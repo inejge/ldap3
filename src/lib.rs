@@ -241,6 +241,7 @@ mod filter;
 mod ldap;
 mod protocol;
 pub mod result;
+mod sasl_layer;
 mod search;
 #[cfg(feature = "sync")]
 mod sync;
@@ -250,6 +251,7 @@ pub use conn::{LdapConnAsync, LdapConnSettings, StdStream};
 pub use filter::parse as parse_filter;
 pub use ldap::{Ldap, Mod};
 pub use result::{LdapError, LdapResult, SearchResult};
+pub use sasl_layer::SaslSecurityLayer;
 pub use search::parse_refs;
 pub use search::{
     DerefAliases, ResultEntry, Scope, SearchEntry, SearchOptions, SearchStream, StreamState,

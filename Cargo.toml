@@ -55,7 +55,6 @@ rustls-provider = []
 sync = ["tokio/rt"]
 gssapi = ["cross-krb5","dep:ring","dep:either"]
 ntlm = ["sspi","dep:ring"]
-fuzzing = []
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "io-util", "sync", "time", "net", "rt-multi-thread"] }

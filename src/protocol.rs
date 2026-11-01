@@ -112,46 +112,6 @@ fn decode_inner(buf: &mut BytesMut) -> Result<Option<(RequestId, (Tag, Vec<Contr
     Ok(Some((msgid, (Tag::StructureTag(protoop), controls))))
 }
 
-/// Fuzz entry point: run the SASL-framing decoder to exhaustion over `input`,
-/// split into reads at the boundaries `input` itself encodes (first byte picks a
-/// chunk size), with a passthrough security layer active. Must never panic for
-/// any input; returns the number of frames decoded, or `None` on a decode error.
-#[cfg(feature = "fuzzing")]
-pub fn fuzz_decode(input: &[u8]) -> Option<usize> {
-    use crate::sasl_layer::{ActiveLayer, SaslSecurityLayer};
-    use std::sync::{Arc, Mutex};
-
-    struct Passthrough;
-    impl SaslSecurityLayer for Passthrough {
-        fn wrap(&mut self, p: &[u8]) -> io::Result<Vec<u8>> {
-            Ok(p.to_vec())
-        }
-        fn unwrap(&mut self, w: &[u8]) -> io::Result<Vec<u8>> {
-            Ok(w.to_vec())
-        }
-    }
-
-    let (chunk, body) = input.split_first()?;
-    let chunk = (*chunk as usize).max(1);
-    let mut codec = LdapCodec {
-        layer: Arc::new(Mutex::new(Some(ActiveLayer { layer: Box::new(Passthrough), max_send: 0 }))),
-        plain: BytesMut::new(),
-    };
-    let mut buf = BytesMut::new();
-    let mut frames = 0usize;
-    for part in body.chunks(chunk) {
-        buf.extend_from_slice(part);
-        loop {
-            match codec.decode(&mut buf) {
-                Ok(Some(_)) => frames += 1,
-                Ok(None) => break,
-                Err(_) => return None,
-            }
-        }
-    }
-    Some(frames)
-}
-
 impl Decoder for LdapCodec {
     type Item = (RequestId, (Tag, Vec<Control>));
     type Error = io::Error;

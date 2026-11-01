@@ -240,13 +240,6 @@ pub mod exop {
 mod filter;
 mod ldap;
 mod protocol;
-/// Fuzzing shim (hidden): drive the SASL-framing decoder over arbitrary input.
-/// Behind the `fuzzing` feature so it never ships in a normal build.
-#[cfg(feature = "fuzzing")]
-#[doc(hidden)]
-pub mod fuzz {
-    pub use crate::protocol::fuzz_decode;
-}
 pub mod result;
 mod sasl_layer;
 mod search;
